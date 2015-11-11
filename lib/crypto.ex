@@ -4,13 +4,35 @@ defmodule Pandora.Crypto do
 @encrypt_key ~s(6#26FRL$ZWD)
 
 
-	def decrypt_synctime(syncTime) do
-		decodedSyncTime = syncTime |> Hexate.decode
-		<<_, _, _, _, a, b, c, d, _ :: binary>> = :crypto.blowfish_ecb_decrypt(@decrypt_key, decodedSyncTime)
-		<<a, b, c, d>>
+	@doc ~S"""
+	Decrypts the sync time returned by the Pandora api.
+	Result is a unix timestamp.
+
+	## Examples
+
+	    iex> Pandora.Crypto.decrypt_sync_time("9b5c019b19035fcbe5aaa601776d491c")
+	    {:ok, 1447198097}
+
+	If your input is not a 32 bit bitstring, an error will be returned:
+
+	    iex> Pandora.Crypto.decrypt_sync_time("too short")
+	    {:error, "syncTime must be a 32 bit bitstring."}
+	"""
+	@spec decrypt_sync_time(<<_ :: 32>>) :: integer
+	def decrypt_sync_time(syncTime) when byte_size(syncTime) == 32 do 
+		<<firstHalf :: size(64), secondHalf :: size(64)>> = syncTime |> Hexate.decode
+		<<_ :: size(32), a :: size(32), _ :: binary>> = :crypto.blowfish_ecb_decrypt(@decrypt_key, <<firstHalf :: size(64)>>)
+		<<b :: size(64), _ :: binary>> = :crypto.blowfish_ecb_decrypt(@decrypt_key, <<secondHalf :: size(64)>>)
+		{decrypted, _} = <<a :: size(32), b :: size(64)>> |> Integer.parse
+		{:ok, decrypted}
 	end
 
+	@spec decrypt_sync_time(any) :: {atom, String.t}
+	def decrypt_sync_time(_), do: {:error, "syncTime must be a 32 bit bitstring."}
+
+
 	def encrypt_body(body) do
-		:crypto.blowfish_ecb_encrypt(@encrypt_key, body)
+		#:crypto.blowfish_ecb_encrypt(@encrypt_key, body)
+		body
 	end
 end

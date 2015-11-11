@@ -1,5 +1,6 @@
 defmodule Pandora.ApiClient do
 	use HTTPoison.Base
+	alias Pandora.Crypto
 
 	def process_url(url) do
 		case url do
@@ -24,18 +25,39 @@ defmodule Pandora.ApiClient do
 	end
 
 	def partner_login() do
-		body = %{"username" => "android", "password" => "AC7IBG09A3DTSYM4R41UJWL07VLN8JI7", "deviceModel" => "android-generic", "version" => "5", "includeUrls" => false} 
+		body = %{
+			"username" => "android", 
+			"password" => "AC7IBG09A3DTSYM4R41UJWL07VLN8JI7", 
+			"deviceModel" => "android-generic", 
+			"version" => "5", 
+			"includeUrls" => false} 
 			|> Poison.encode!
+
 		response = post!("auth.partnerLogin", body)
-		%{partnerAuthToken: response.body["partnerAuthToken"], partnerId: response.body["partnerId"], syncTime: response.body["syncTime"]}
+
+		case Crypto.decrypt_sync_time(response.body["syncTime"]) do
+			{:ok, syncTime} -> 
+				%{partnerAuthToken: response.body["partnerAuthToken"],
+				partnerId: response.body["partnerId"], 
+				syncTime: syncTime}
+			{:error, _} -> {:error, "Error decrypting syncTime."}
+		end
 	end
 
 	def user_login(username, password, partnerAuthToken, partnerId, syncTime) do
-		body = %{"loginType" => "user", "username" => username, "password" => password, "partnerAuthToken" => partnerAuthToken, "syncTime" => syncTime}
-				|> Poison.encode!
-				|> Pandora.Crypto.encrypt_body
+		body = %{
+			"loginType" => "user", 
+			"username" => username, 
+			"password" => password, 
+			"partnerAuthToken" => partnerAuthToken, 
+			"syncTime" => syncTime}
+			|> Poison.encode!
+			|> Crypto.encrypt_body
+
 		query = [{"partnerId", partnerId}, {"partnerAuthToken", URI.encode(partnerAuthToken)}]
-				|> URI.encode_query
+
+		|> URI.encode_query
+
 		response = post!("auth.userLogin&" <> query, body)
 	end
 end
