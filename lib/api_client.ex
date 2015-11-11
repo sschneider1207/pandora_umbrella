@@ -55,8 +55,7 @@ defmodule Pandora.ApiClient do
 			|> Crypto.encrypt_body
 
 		query = [{"partnerId", partnerId}, {"partnerAuthToken", URI.encode(partnerAuthToken)}]
-
-		|> URI.encode_query
+			|> URI.encode_query
 
 		response = post!("auth.userLogin&" <> query, body)
 	end

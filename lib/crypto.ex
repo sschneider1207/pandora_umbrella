@@ -18,12 +18,12 @@ defmodule Pandora.Crypto do
 	    iex> Pandora.Crypto.decrypt_sync_time("too short")
 	    {:error, "syncTime must be a 32 bit bitstring."}
 	"""
-	@spec decrypt_sync_time(<<_ :: 32>>) :: integer
+	@spec decrypt_sync_time(<<_ :: 32>>) :: {atom, integer}
 	def decrypt_sync_time(syncTime) when byte_size(syncTime) == 32 do 
-		<<firstHalf :: size(64), secondHalf :: size(64)>> = syncTime |> Hexate.decode
-		<<_ :: size(32), a :: size(32), _ :: binary>> = :crypto.blowfish_ecb_decrypt(@decrypt_key, <<firstHalf :: size(64)>>)
-		<<b :: size(64), _ :: binary>> = :crypto.blowfish_ecb_decrypt(@decrypt_key, <<secondHalf :: size(64)>>)
-		{decrypted, _} = <<a :: size(32), b :: size(64)>> |> Integer.parse
+		<<firstHalf :: size(64), secondHalf :: size(64)>> = Hexate.decode(syncTime)
+		<<_ :: size(32), decryptedFirstHalf :: size(32), _ :: binary>> = :crypto.blowfish_ecb_decrypt(@decrypt_key, <<firstHalf :: size(64)>>)
+		<<decryptedSecondHalf :: size(64), _ :: binary>> = :crypto.blowfish_ecb_decrypt(@decrypt_key, <<secondHalf :: size(64)>>)
+		{decrypted, _} = <<decryptedFirstHalf :: size(32), decryptedSecondHalf :: size(64)>> |> Integer.parse
 		{:ok, decrypted}
 	end
 
