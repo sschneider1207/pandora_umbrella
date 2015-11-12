@@ -31,8 +31,34 @@ defmodule Pandora.Crypto do
 	def decrypt_sync_time(_), do: {:error, "syncTime must be a 32 bit bitstring."}
 
 
-	def encrypt_body(body) do
-		#:crypto.blowfish_ecb_encrypt(@encrypt_key, body)
-		body
+	@doc ~S"""
+	Encrypts a UTF-8 encoded bitstring with the Pandora blowfish encrypt key.
+
+	## Example
+
+	    iex> Pandora.Crypto.encrypt_body("1234567812345678")
+	    "c0987ab91d507e5dc0987ab91d507e5d"
+	"""
+	@spec encrypt_body(String.t) :: String.t
+	def encrypt_body(body) when is_bitstring(body) do		
+		body 
+		|> chunk_body
+		|> Enum.map(&encrypt_chunk/1)
+		|> List.foldl(<<>>, &fold_encrypted_chunk/2)
+		|> Hexate.encode
+	end	
+
+	defp chunk_body(body) when byte_size(body) >= 8 do
+		{chunk, remaining} = String.split_at(body, 8)		
+		[chunk | chunk_body(remaining)]
 	end
+	defp chunk_body(body) when byte_size(body) > 0, do: [String.ljust(body, 8)]
+	defp chunk_body(body) when byte_size(body) == 0, do: []
+
+	defp encrypt_chunk(chunk) do
+		<<encryptedBytes :: size(64), _ ::binary>> = :crypto.blowfish_ecb_encrypt(@encrypt_key, chunk)
+		encryptedBytes
+	end
+
+	defp fold_encrypted_chunk(chunk, acc), do: acc <> <<chunk :: size(64)>>
 end

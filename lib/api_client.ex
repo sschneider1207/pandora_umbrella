@@ -54,9 +54,12 @@ defmodule Pandora.ApiClient do
 			|> Poison.encode!
 			|> Crypto.encrypt_body
 
-		query = [{"partnerId", partnerId}, {"partnerAuthToken", URI.encode(partnerAuthToken)}]
-			|> URI.encode_query
+		query = URI.encode_query([{"partner_id", partnerId}, {"auth_token", URI.encode(partnerAuthToken)}])
 
 		response = post!("auth.userLogin&" <> query, body)
+
+		%{userAuthToken: response.body["userAuthToken"],
+		userId: response.body["userId"],
+		canListen: response.body["canListen"]}
 	end
 end
