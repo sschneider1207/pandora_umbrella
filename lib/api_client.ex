@@ -48,7 +48,7 @@ defmodule Pandora.ApiClient do
 		end
 	end
 
-	@spec user_login(String.t, String.t, String.t, String.t, integer) :: %{}
+	@spec user_login(String.t, String.t, String.t, String.t, integer) :: {atom, %{}} | {atom, tuple}
 	def user_login(username, password, partnerAuthToken, partnerId, syncTime) do
 		body = %{"loginType" => "user", 
 			"username" => username, 
@@ -62,9 +62,10 @@ defmodule Pandora.ApiClient do
 
 		response = post!("auth.userLogin&" <> query, body)
 
-		%{userAuthToken: response.body["userAuthToken"],
-		userId: response.body["userId"],
-		canListen: response.body["canListen"]}
+		case response.body do
+			user when is_map(user) -> {:ok, %{userAuthToken: user["userAuthToken"], userId: user["userId"], canListen: user["canListen"]}}
+			error when is_tuple(error) -> {:fail, error}
+		end
 	end
 
 	@spec get_station_list(String.t, String.t, String.t, integer, integer) :: %{}

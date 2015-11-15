@@ -53,7 +53,7 @@ defmodule Pandora.Crypto do
 		[chunk | chunk_body(remaining)]
 	end
 	defp chunk_body(body) when byte_size(body) > 0, do: [String.ljust(body, 8)]
-	defp chunk_body(body) when byte_size(body) == 0, do: []
+	defp chunk_body(body) when byte_size(body) === 0, do: []
 
 	defp encrypt_chunk(chunk) do
 		<<encryptedBytes :: size(64), _ ::binary>> = :crypto.blowfish_ecb_encrypt(@encrypt_key, chunk)
