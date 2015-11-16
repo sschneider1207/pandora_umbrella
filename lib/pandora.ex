@@ -1,7 +1,7 @@
 defmodule Pandora do
-	use Application
+  use Application
 
-	def start(_type, _args) do
-		#Pandora.ApiClient.start
-	end
+  def start(_type, _args) do
+    #Pandora.ApiClient.start
+  end
 end
