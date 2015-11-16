@@ -24,12 +24,12 @@ defmodule Pandora.ApiClient do
 		end
 	end
 
-	def check_licensing() do
+	def check_licensing do
 		response = get!("test.checkLicensing")
 		response.body
 	end
 
-	def partner_login() do
+	def partner_login do
 		body = %{"username" => "android", 
 			"password" => "AC7IBG09A3DTSYM4R41UJWL07VLN8JI7", 
 			"deviceModel" => "android-generic", 
@@ -39,45 +39,45 @@ defmodule Pandora.ApiClient do
 		response = post!("auth.partnerLogin", body)
 
 		case Crypto.decrypt_sync_time(response.body["syncTime"]) do
-			{:ok, syncTime} -> 
-				%{partnerAuthToken: response.body["partnerAuthToken"],
-				partnerId: response.body["partnerId"], 
-				syncTime: syncTime,
-				timeSynced: :os.system_time(:seconds)}
+			{:ok, sync_time} -> 
+				%{partner_auth_token: response.body["partnerAuthToken"],
+				partner_id: response.body["partnerId"], 
+				sync_time: sync_time,
+				time_synced: :os.system_time(:seconds)}
 			{:error, _} -> {:error, "Error decrypting syncTime."}
 		end
 	end
 
 	@spec user_login(String.t, String.t, String.t, String.t, integer) :: {atom, %{}} | {atom, tuple}
-	def user_login(username, password, partnerAuthToken, partnerId, syncTime) do
+	def user_login(username, password, partner_auth_token, partner_id, sync_time) do
 		body = %{"loginType" => "user", 
 			"username" => username, 
 			"password" => password, 
-			"partnerAuthToken" => partnerAuthToken, 
-			"syncTime" => syncTime} |> Poison.encode! |> Crypto.encrypt_body
+			"partnerAuthToken" => partner_auth_token, 
+			"syncTime" => sync_time} |> Poison.encode! |> Crypto.encrypt_body
 
 		query = URI.encode_query([
-			{"partner_id", partnerId}, 
-			{"auth_token", URI.encode(partnerAuthToken)}])
+			{"partner_id", partner_id}, 
+			{"auth_token", URI.encode(partner_auth_token)}])
 
 		response = post!("auth.userLogin&" <> query, body)
 
 		case response.body do
-			user when is_map(user) -> {:ok, %{userAuthToken: user["userAuthToken"], userId: user["userId"], canListen: user["canListen"]}}
+			user when is_map(user) -> {:ok, %{user_auth_token: user["userAuthToken"], user_id: user["userId"], can_listen: user["canListen"]}}
 			error when is_tuple(error) -> {:fail, error}
 		end
 	end
 
 	@spec get_station_list(String.t, String.t, String.t, integer, integer) :: %{}
-	def get_station_list(partnerId, userAuthToken, userId, syncTime, timeSynced) do
+	def get_station_list(partner_id, user_auth_token, user_id, sync_time, time_synced) do
 		body = %{"includeStationArtUrl" => true,
-			"userAuthToken" => userAuthToken,
-			"syncTime" => adjusted_sync_time(syncTime, timeSynced)} |> Poison.encode! |> Crypto.encrypt_body
+			"userAuthToken" => user_auth_token,
+			"syncTime" => adjusted_sync_time(sync_time, time_synced)} |> Poison.encode! |> Crypto.encrypt_body
 
 		query = URI.encode_query([
-			{"partner_id", partnerId}, 
-			{"auth_token", URI.encode(userAuthToken)}, 
-			{"user_id", userId}])
+			{"partner_id", partner_id}, 
+			{"auth_token", URI.encode(user_auth_token)}, 
+			{"user_id", user_id}])
 
 		response = post!("user.getStationList&" <> query, body)
 
@@ -86,15 +86,15 @@ defmodule Pandora.ApiClient do
 	end
 
 	@spec get_playlist(String.t, String.t, String.t, String.t, integer, integer) :: [%{}]
-	def get_playlist(stationToken, partnerId, userAuthToken, userId, syncTime, timeSynced) do
-		body = %{"userAuthToken" => userAuthToken,
-			"syncTime" => adjusted_sync_time(syncTime, timeSynced),
-			"stationToken" => stationToken} |> Poison.encode! |> Crypto.encrypt_body
+	def get_playlist(station_token, partner_id, user_auth_token, user_id, sync_time, time_synced) do
+		body = %{"userAuthToken" => user_auth_token,
+			"syncTime" => adjusted_sync_time(sync_time, time_synced),
+			"stationToken" => station_token} |> Poison.encode! |> Crypto.encrypt_body
 
 		query = URI.encode_query([
-			{"partner_id", partnerId}, 
-			{"auth_token", URI.encode(userAuthToken)}, 
-			{"user_id", userId}])
+			{"partner_id", partner_id}, 
+			{"auth_token", URI.encode(user_auth_token)}, 
+			{"user_id", user_id}])
 
 		response = post!("station.getPlaylist&" <> query, body)
 
@@ -102,21 +102,21 @@ defmodule Pandora.ApiClient do
 	end
 
 	@spec add_feedback(String.t, String.t, boolean, String.t, String.t, String.t, integer, integer) :: %{}
-	def add_feedback(stationToken, trackToken, isPositive, partnerId, userAuthToken, userId, syncTime, timeSynced) do
-		body = %{"userAuthToken" => userAuthToken,
-			"syncTime" => adjusted_sync_time(syncTime, timeSynced),
-			"stationToken" => stationToken,
-			"trackToken" => trackToken,
-			"isPositive" => isPositive} |> Poison.encode! |> Crypto.encrypt_body
+	def add_feedback(station_token, track_oken, is_positive, partner_id, user_auth_token, user_id, sync_time, time_synced) do
+		body = %{"userAuthToken" => user_auth_token,
+			"syncTime" => adjusted_sync_time(sync_time, time_synced),
+			"stationToken" => station_token,
+			"trackToken" => track_oken,
+			"isPositive" => is_positive} |> Poison.encode! |> Crypto.encrypt_body
 
 		query = URI.encode_query([
-			{"partner_id", partnerId}, 
-			{"auth_token", URI.encode(userAuthToken)}, 
-			{"user_id", userId}])
+			{"partner_id", partner_id}, 
+			{"auth_token", URI.encode(user_auth_token)}, 
+			{"user_id", user_id}])
 
 		response = post!("station.addFeedback&" <> query, body)
 		response.body
 	end
 
-	defp adjusted_sync_time(syncTime, timeSynced), do: syncTime + (:os.system_time(:seconds) - timeSynced)
+	defp adjusted_sync_time(sync_time, time_synced), do: sync_time + (:os.system_time(:seconds) - time_synced)
 end
