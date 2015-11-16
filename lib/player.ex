@@ -65,7 +65,7 @@ defmodule Pandora.Player do
   def handle_call(:get_stations, _from, %{:user_auth_token => nil} = state), do: {:reply, {:fail, "Not logged in."}, state}
   def handle_call(:get_stations, _from, %{:stations => stations} = state) when stations !== [], do: {:reply, {:ok, Enum.map(stations, &Map.fetch!(&1, "stationName")) |> Enum.with_index}, state}
   def handle_call(:get_stations, _from, %{:partner_id => partner_id, :user_auth_token => user_auth_token, :user_id => user_id, :sync_time => sync_time, :time_synced => time_synced} = state) do
-    %{:stations => stations} = Pandora.ApiClient.get_station_list(partner_id, user_auth_token, user_id, sync_time, time_synced)
+    %{:stations => stations} = ApiClient.get_station_list(partner_id, user_auth_token, user_id, sync_time, time_synced)
     {:reply, {:ok, Enum.map(stations, &Map.fetch!(&1, "stationName")) |> Enum.with_index}, %{state | :stations => stations}}
   end
 
@@ -76,7 +76,7 @@ defmodule Pandora.Player do
   def handle_call({:set_station, _station_index}, _from, %{:user_auth_token => nil} = state), do: {:reply, {:fail, "Not logged in."}, state}
   def handle_call({:set_station, station_index}, _from, %{:stations => stations} = state) when stations !== [], do: handle_set_station(station_index, state)
   def handle_call({:set_station, station_index}, _from, %{:partner_id => partner_id, :user_auth_token => user_auth_token, :user_id => user_id, :sync_time => sync_time, :time_synced => time_synced} = state) do
-    %{:stations => stations} = Pandora.ApiClient.get_station_list(partner_id, user_auth_token, user_id, sync_time, time_synced)
+    %{:stations => stations} = ApiClient.get_station_list(partner_id, user_auth_token, user_id, sync_time, time_synced)
     handle_set_station(station_index, %{state | :stations => stations})
   end
 
