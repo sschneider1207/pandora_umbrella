@@ -1,11 +1,12 @@
 defmodule Pandora.Player do  
   use GenServer
   alias Pandora.ApiClient
+  alias Pandora.AudioStreamer
 
   ### Client ###
 
   def start_link(opts \\ []) do
-      GenServer.start_link(__MODULE__, :ok, opts)
+    GenServer.start_link(__MODULE__, :ok, opts)
   end
 
   def login(server, username, password) do
@@ -28,12 +29,16 @@ defmodule Pandora.Player do
     GenServer.call(server, :get_station)
   end
 
+  def now_playing(server) do
+    GenServer.call(server, :now_playing)
+  end
+
   ### Server ###
 
   def init(:ok) do
     ApiClient.start
     %{:partner_auth_token => partner_auth_token, :partner_id => partner_id, :sync_time => sync_time, :time_synced => time_synced} = ApiClient.partner_login
-    {:ok, %{partner_auth_token: partner_auth_token, partner_id: partner_id, sync_time: sync_time, time_synced: time_synced, user_auth_token: nil, user_id: nil, username: nil, password: nil, stations: [], current_station: nil, playlist: [], current_song: nil}}
+    {:ok, %{partner_auth_token: partner_auth_token, partner_id: partner_id, sync_time: sync_time, time_synced: time_synced, user_auth_token: nil, user_id: nil, username: nil, password: nil, stations: [], current_station: nil, playlist: [], now_playing: nil, audio_streamer: nil}}
   end
 
   @doc """
@@ -56,7 +61,7 @@ defmodule Pandora.Player do
   Callback for logout/1.
   """
   def handle_call(:logout, _from, %{:user_auth_token => nil} = state), do: {:reply, {:fail, "Not logged in."}, state}
-  def handle_call(:logout, _from, state), do: {:reply, :ok, %{state | :user_auth_token => nil, :user_id => nil, :username => nil, :password => nil, :stations => [], :current_station => nil, :playlist => [], :current_song => nil}}
+  def handle_call(:logout, _from, state), do: {:reply, :ok, %{state | :user_auth_token => nil, :user_id => nil, :username => nil, :password => nil, :stations => [], :current_station => nil, :playlist => [], :now_playing => nil}}
 
   @doc """
   Callback for list_stations/1.
@@ -83,7 +88,8 @@ defmodule Pandora.Player do
   @doc """
   Callback for current_station/1.
   """
-  def handle_call(:get_station, _from, %{:current_station => current_station} = state) when current_station === nil, do: {:reply, {:fail, "No station currently selected."}, state}
+  def handle_call(:get_station, _from, %{:user_auth_token => nil} = state), do: {:reply, {:fail, "Not logged in."}, state}
+  def handle_call(:get_station, _from, %{:current_station => nil} = state), do: {:reply, {:fail, "No station currently selected."}, state}
   def handle_call(:get_station, _from, %{:current_station => current_station, :stations => stations} = state) do 
     case Enum.find(stations, nil, &station_token_match?(&1, current_station)) do
       nil -> {:reply, {:fail, "Error getting station."}, state}
@@ -91,14 +97,42 @@ defmodule Pandora.Player do
     end
   end
 
+  @doc """
+  Callback for now_playing/1.
+  """
+  def handle_call(:now_playing, _from, %{:user_auth_token => nil} = state), do: {:reply, {:fail, "Not logged in."}, state}
+  def handle_call(:now_playing, _from, %{:current_station => nil} = state), do: {:reply, {:fail, "No station currently selected."}, state}
+  def handle_call(:now_playing, _from, %{:now_playing => %{"songName" => song, "artistName" => artist, "albumName" => album}} = state), do: {:reply, {:ok, %{song: song, artist: artist, album: album}}, state}
+
+
   ### Private helpers ###
 
   defp handle_set_station(station_index, %{:stations => stations} = state) do
     case Enum.fetch(stations, station_index) do
       :error -> {:reply, {:fail, "Station index out of range."}, state}
-      {:ok, %{"stationToken" => station_token}} -> {:reply, :ok, %{state | :current_station => station_token}}        
+      {:ok, %{"stationToken" => station_token}} -> 
+        new_state = next_song(%{state | :current_station => station_token, :now_playing => nil, :playlist => []})
+        {:reply, :ok, new_state}        
     end
   end
 
   defp station_token_match?(station, station_token), do: station["stationToken"] === station_token
+
+  defp next_song(%{:partner_id => partner_id, :user_auth_token => user_auth_token, :user_id => user_id, :sync_time => sync_time, :time_synced => time_synced, :current_station => current_station, :playlist => [], :audio_streamer => audio_streamer} = state) do
+    [new_song | playlist] = ApiClient.get_playlist(current_station, partner_id, user_auth_token, user_id, sync_time, time_synced)
+    # kill current audio stream
+    if audio_streamer === nil do
+      # KILL IT
+    end
+    # start streaming new_song
+    audio_url_map = new_song["audioUrlMap"]
+    high_quality = audio_url_map["highQuality"]
+    {:ok, streamer} = AudioStreamer.start(high_quality["audioUrl"])
+    %{state | :now_playing => new_song, :playlist => playlist}
+  end  
+  defp next_song(%{:playlist => [new_song | playlist]} = state) do
+    # kill current audio stream
+    # start streaming new_song
+    %{state | :now_playing => new_song, :playlist => playlist}
+  end
 end

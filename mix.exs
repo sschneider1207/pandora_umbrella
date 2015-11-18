@@ -14,7 +14,7 @@ defmodule Pandora.Mixfile do
   #
   # Type `mix help compile.app` for more information
   def application do
-    [applications: [:logger, :httpoison, :poison, :hexate]]
+    [applications: [:logger, :httpoison, :poison, :hexate, :erlaudio]]
   end
 
   # Dependencies can be Hex packages:
@@ -30,7 +30,8 @@ defmodule Pandora.Mixfile do
     [
     	{:httpoison, "~> 0.7.2"},
     	{:poison, "~> 1.5"},
-    	{:hexate,  ">= 0.5.0"}
+    	{:hexate,  ">= 0.5.0"},
+      {:erlaudio, "~> 0.2.3"}
     ]
   end
 end
