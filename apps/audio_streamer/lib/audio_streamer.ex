@@ -1,4 +1,4 @@
-defmodule Pandora.AudioStreamer do  
+defmodule AudioStreamer do
   use GenServer
 
   ### Client ###
@@ -28,6 +28,4 @@ defmodule Pandora.AudioStreamer do
 
   def terminate(:end_of_stream, _state), do: nil
   def terminate(_reason, _state), do: nil
-
 end
-

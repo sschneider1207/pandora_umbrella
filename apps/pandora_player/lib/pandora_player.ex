@@ -1,7 +1,5 @@
-defmodule Pandora.Player do  
+defmodule PandoraPlayer do
   use GenServer
-  alias Pandora.ApiClient
-  alias Pandora.AudioStreamer
 
   ### Client ###
 
@@ -36,8 +34,8 @@ defmodule Pandora.Player do
   ### Server ###
 
   def init(:ok) do
-    ApiClient.start
-    %{:partner_auth_token => partner_auth_token, :partner_id => partner_id, :sync_time => sync_time, :time_synced => time_synced} = ApiClient.partner_login
+    PandoraApiClient.start
+    %{:partner_auth_token => partner_auth_token, :partner_id => partner_id, :sync_time => sync_time, :time_synced => time_synced} = PandoraApiClient.partner_login
     {:ok, %{partner_auth_token: partner_auth_token, partner_id: partner_id, sync_time: sync_time, time_synced: time_synced, user_auth_token: nil, user_id: nil, username: nil, password: nil, stations: [], current_station: nil, playlist: [], now_playing: nil, audio_streamer: nil}}
   end
 
@@ -46,7 +44,7 @@ defmodule Pandora.Player do
   """
   def handle_call({:login, _user}, _from, %{:username => username} = state) when byte_size(username) > 0, do: {:reply, {:fail, "Already logged in as #{username}.  Please log out first."}, state}
   def handle_call({:login, {username, password}}, _from, %{:partner_auth_token => partner_auth_token, :partner_id => partner_id, :sync_time => sync_time} = state) do
-    case ApiClient.user_login(username, password, partner_auth_token, partner_id, sync_time) do
+    case PandoraApiClient.user_login(username, password, partner_auth_token, partner_id, sync_time) do
       {:fail, _error} -> {:reply, {:fail, "Incorrect username/password."}, state}
       {:ok, %{:can_listen => can_listen, :user_auth_token => user_auth_token, :user_id => user_id}} ->
         if can_listen do
@@ -70,7 +68,7 @@ defmodule Pandora.Player do
   def handle_call(:get_stations, _from, %{:user_auth_token => nil} = state), do: {:reply, {:fail, "Not logged in."}, state}
   def handle_call(:get_stations, _from, %{:stations => stations} = state) when stations !== [], do: {:reply, {:ok, Enum.map(stations, &Map.fetch!(&1, "stationName")) |> Enum.with_index}, state}
   def handle_call(:get_stations, _from, %{:partner_id => partner_id, :user_auth_token => user_auth_token, :user_id => user_id, :sync_time => sync_time, :time_synced => time_synced} = state) do
-    %{:stations => stations} = ApiClient.get_station_list(partner_id, user_auth_token, user_id, sync_time, time_synced)
+    %{:stations => stations} = PandoraApiClient.get_station_list(partner_id, user_auth_token, user_id, sync_time, time_synced)
     {:reply, {:ok, Enum.map(stations, &Map.fetch!(&1, "stationName")) |> Enum.with_index}, %{state | :stations => stations}}
   end
 
@@ -81,7 +79,7 @@ defmodule Pandora.Player do
   def handle_call({:set_station, _station_index}, _from, %{:user_auth_token => nil} = state), do: {:reply, {:fail, "Not logged in."}, state}
   def handle_call({:set_station, station_index}, _from, %{:stations => stations} = state) when stations !== [], do: handle_set_station(station_index, state)
   def handle_call({:set_station, station_index}, _from, %{:partner_id => partner_id, :user_auth_token => user_auth_token, :user_id => user_id, :sync_time => sync_time, :time_synced => time_synced} = state) do
-    %{:stations => stations} = ApiClient.get_station_list(partner_id, user_auth_token, user_id, sync_time, time_synced)
+    %{:stations => stations} = PandoraApiClient.get_station_list(partner_id, user_auth_token, user_id, sync_time, time_synced)
     handle_set_station(station_index, %{state | :stations => stations})
   end
 
@@ -119,7 +117,7 @@ defmodule Pandora.Player do
   defp station_token_match?(station, station_token), do: station["stationToken"] === station_token
 
   defp next_song(%{:partner_id => partner_id, :user_auth_token => user_auth_token, :user_id => user_id, :sync_time => sync_time, :time_synced => time_synced, :current_station => current_station, :playlist => [], :audio_streamer => audio_streamer} = state) do
-    [new_song | playlist] = ApiClient.get_playlist(current_station, partner_id, user_auth_token, user_id, sync_time, time_synced)
+    [new_song | playlist] = PandoraApiClient.get_playlist(current_station, partner_id, user_auth_token, user_id, sync_time, time_synced)
     # kill current audio stream
     if audio_streamer === nil do
       # KILL IT

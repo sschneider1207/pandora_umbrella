@@ -1,6 +1,6 @@
-defmodule Pandora.ApiClient do
+defmodule PandoraApiClient do
   use HTTPoison.Base
-  alias Pandora.Crypto
+  alias PandoraApiClient.Crypto
 
 @endpoint ~s(tuner.pandora.com/services/json/?method=)
 

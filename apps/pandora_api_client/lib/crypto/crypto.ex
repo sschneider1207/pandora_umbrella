@@ -1,4 +1,4 @@
-defmodule Pandora.Crypto do
+defmodule PandoraApiClient.Crypto do
 
 @decrypt_key ~s(R=U!LH$O2B#)
 @encrypt_key ~s(6#26FRL$ZWD)
