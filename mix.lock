@@ -1,4 +1,5 @@
 %{"erlaudio": {:hex, :erlaudio, "0.2.3"},
+  "erlport": {:git, "https://github.com/hdima/erlport.git", "4041c0810f798cba9fa528ebca90556f0ae50645", []},
   "hackney": {:hex, :hackney, "1.3.2"},
   "hexate": {:hex, :hexate, "0.5.1"},
   "httpoison": {:hex, :httpoison, "0.7.5"},
