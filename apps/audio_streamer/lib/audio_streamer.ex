@@ -1,31 +1,44 @@
 defmodule AudioStreamer do
-  use GenServer
 
-  ### Client ###
+  ## Client
 
-  def start(url, opts \\ []) do
-    GenServer.start(__MODULE__, {:ok, url}, opts)
+  def stream_url(url) do
+    Task.start_link(fn -> init(url) end)
   end
 
-  ### Server ###
+  def pause(task) do
+    send(task, :pause)
+  end
 
-  def init({:ok, url}) do
+  def kill(task) do
+    send(task, :kill)
+  end
+
+  ## Task
+
+  def init(url) do
     file = File.open!("test.mp4", [:append])
-    HTTPoison.start
-    %{:id => id} = HTTPoison.get!(url, %{"Accept" => "audio/mpeg"}, [stream_to: self, recv_timeout: :infinity])
-    {:ok, %{id: id, file: file}}
+    %{id: stream_id} = HTTPoison.get!(url, %{"Accept" => "audio/mpeg"}, [stream_to: self, recv_timeout: :infinity])
+    loop(%{stream_id: stream_id, file: file, paused: false})
   end
 
-  def handle_info(%{:__struct__ => HTTPoison.AsyncStatus, :id => msg_id}, %{:id => stream_id} = state) when stream_id === msg_id, do: {:noreply, state}
-  def handle_info(%{:__struct__ => HTTPoison.AsyncHeaders, :id => msg_id}, %{:id => stream_id} = state) when stream_id === msg_id, do: {:noreply, state}
-  def handle_info(%{:__struct__ => HTTPoison.AsyncEnd, :id => msg_id}, %{:id => stream_id} = state) when stream_id === msg_id, do: {:stop, :end_of_stream, state}
-  def handle_info(%{:__struct__ => HTTPoison.AsyncChunk, :chunk => chunk, :id => msg_id}, %{:id => stream_id, :file => file} = state) when stream_id === msg_id do
-    IO.binwrite(file, chunk)
-    {:noreply, state}
+  defp loop(%{stream_id: stream_id, file: file, paused: paused} = state) do
+    receive do
+      %HTTPoison.AsyncStatus{code: 200, id: ^stream_id} -> loop(state)
+      %HTTPoison.AsyncHeaders{id: ^stream_id} -> loop(state)
+      %HTTPoison.AsyncChunk{id: ^stream_id, chunk: chunk} -> 
+        IO.binwrite(file, chunk)
+        loop(state)
+      %HTTPoison.AsyncEnd{id: ^stream_id} -> terminate(file)
+      :pause -> loop(%{state | paused: not paused})
+      :kill -> terminate(file)
+      _ -> loop(state)
+    end
+    
   end
 
-  def handle_info(_, state), do: {:noreply, state}
-
-  def terminate(:end_of_stream, %{:file => file}), do: File.close(file)
-  def terminate(_reason, _state), do: nil
+  defp terminate(file) do
+    File.close(file)
+    Process.exit(self(), :normal)
+  end
 end
