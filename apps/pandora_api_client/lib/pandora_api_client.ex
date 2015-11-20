@@ -4,16 +4,17 @@ defmodule PandoraApiClient do
 
 @endpoint ~s(tuner.pandora.com/services/json/?method=)
 
+  
   def process_url(url) do
-    full_url(url)
+    protocol(url) <> @endpoint  <> url
   end
 
-  defp full_url(method = "test.checkLicensing" <> params), do: "http://" <> @endpoint <> method <> params
-  defp full_url(method = "auth.partnerLogin" <> params), do: "https://" <> @endpoint <> method <> params
-  defp full_url(method = "auth.userLogin" <> params), do: "https://" <> @endpoint <> method <> params
-  defp full_url(method = "user.getStationList" <> params), do: "http://" <> @endpoint <> method <> params
-  defp full_url(method = "station.getPlaylist" <> params), do: "http://" <> @endpoint <> method <> params
-  defp full_url(method = "station.addFeedback" <> params), do: "http://" <> @endpoint <> method <> params
+  defp protocol("test.checkLicensing" <> _), do: "http://"
+  defp protocol("auth.partnerLogin" <> _), do: "https://"
+  defp protocol("auth.userLogin" <> _), do: "https://"
+  defp protocol("user.getStationList" <> _), do: "http://"
+  defp protocol("station.getPlaylist" <> _), do: "http://"
+  defp protocol("station.addFeedback" <> _), do: "http://"
 
 
   def process_response_body(body) do

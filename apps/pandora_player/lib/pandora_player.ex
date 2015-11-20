@@ -1,5 +1,17 @@
 defmodule PandoraPlayer do
   use GenServer
+  use Application
+
+  def start(_type, _args) do
+    import Supervisor.Spec, warn: false
+
+    children = [
+      worker(PandoraPlayer, [[name: __MODULE__]])
+    ]
+
+    opts = [strategy: :one_for_one, name: PandoraPlayer.Supervisor]
+    Supervisor.start_link(children, opts)
+  end
 
   ### Client ###
 
@@ -7,34 +19,33 @@ defmodule PandoraPlayer do
     GenServer.start_link(__MODULE__, :ok, opts)
   end
 
-  def login(server, username, password) do
-    GenServer.call(server, {:login, {username, password}})
+  def login(username, password) do
+    GenServer.call(__MODULE__, {:login, {username, password}})
   end
 
-  def logout(server) do
-    GenServer.call(server, :logout)
+  def logout do
+    GenServer.call(__MODULE__, :logout)
   end
 
-  def list_stations(server) do
-    GenServer.call(server, :get_stations)
+  def list_stations do
+    GenServer.call(__MODULE__, :get_stations)
   end
 
-  def set_station(server, station_index) do
-    GenServer.call(server, {:set_station, station_index})
+  def set_station(station_index) do
+    GenServer.call(__MODULE__, {:set_station, station_index})
   end
 
-  def current_station(server) do
-    GenServer.call(server, :get_station)
+  def current_station do
+    GenServer.call(__MODULE__, :get_station)
   end
 
-  def now_playing(server) do
-    GenServer.call(server, :now_playing)
+  def now_playing do
+    GenServer.call(__MODULE__, :now_playing)
   end
 
   ### Server ###
 
   def init(:ok) do
-    PandoraApiClient.start
     %{:partner_auth_token => partner_auth_token, :partner_id => partner_id, :sync_time => sync_time, :time_synced => time_synced} = PandoraApiClient.partner_login
     {:ok, %{partner_auth_token: partner_auth_token, partner_id: partner_id, sync_time: sync_time, time_synced: time_synced, user_auth_token: nil, user_id: nil, username: nil, password: nil, stations: [], current_station: nil, playlist: [], now_playing: nil, audio_streamer: nil}}
   end
