@@ -55,16 +55,9 @@ defmodule PandoraPlayer do
   Callback for login/3.
   """
   def handle_call({:login, _user}, _from, %{username: username} = state) when byte_size(username) > 0, do: {:reply, {:fail, "Already logged in as #{username}.  Please log out first."}, state}
-  def handle_call({:login, {username, password}}, _from, %{partner_auth_token: partner_auth_token, partner_id: partner_id, sync_time: sync_time} = state) do
-    case PandoraApiClient.user_login(username, password, partner_auth_token, partner_id, sync_time) do
-      {:fail, _error} -> {:reply, {:fail, "Incorrect username/password."}, state}
-      {:ok, %{can_listen: can_listen, user_auth_token: user_auth_token, user_id: user_id}} ->
-        if can_listen do
-          {:reply, :ok, %{state | user_auth_token: user_auth_token, user_id: user_id, username: username, password: password}}
-        else
-          {:reply, {:fail, "User cannot listen."}, state}
-        end
-    end
+  def handle_call({:login, {username, password} = user}, _from, %{partner_auth_token: partner_auth_token, partner_id: partner_id, sync_time: sync_time} = state) do
+    PandoraApiClient.user_login(username, password, partner_auth_token, partner_id, sync_time)
+    |> login_reply(user, state)
   end
 
   @doc """
@@ -78,7 +71,10 @@ defmodule PandoraPlayer do
   Caches station list.
   """  
   def handle_call(:get_stations, _from, %{user_auth_token: nil} = state), do: {:reply, {:fail, "Not logged in."}, state}
-  def handle_call(:get_stations, _from, %{stations: stations} = state) when stations !== [], do: get_stations_with_index(stations) |> get_stations_reply(state)
+  def handle_call(:get_stations, _from, %{stations: stations} = state) when stations !== [] do 
+    get_stations_with_index(stations) 
+    |> get_stations_reply(state)
+  end
   def handle_call(:get_stations, _from, %{partner_id: partner_id, user_auth_token: user_auth_token, user_id: user_id, sync_time: sync_time, time_synced: time_synced} = state) do
     {stations, _checksum} = PandoraApiClient.get_station_list(partner_id, user_auth_token, user_id, sync_time, time_synced)
     get_stations_with_index(stations)
@@ -90,7 +86,10 @@ defmodule PandoraPlayer do
   If station list hasn't been cached yet, will get it now.
   """
   def handle_call({:set_station, _station_index}, _from, %{user_auth_token: nil} = state), do: {:reply, {:fail, "Not logged in."}, state}
-  def handle_call({:set_station, station_index}, _from, %{stations: stations} = state) when stations !== [], do: Enum.fetch(stations, station_index) |> set_station_reply(%{state | stations: stations})
+  def handle_call({:set_station, station_index}, _from, %{stations: stations} = state) when stations !== [] do
+   Enum.fetch(stations, station_index) 
+   |> set_station_reply(%{state | stations: stations})
+ end
   def handle_call({:set_station, station_index}, _from, %{partner_id: partner_id, user_auth_token: user_auth_token, user_id: user_id, sync_time: sync_time, time_synced: time_synced} = state) do
     {stations, _checksum} = PandoraApiClient.get_station_list(partner_id, user_auth_token, user_id, sync_time, time_synced)
     Enum.fetch(stations, station_index)
@@ -102,9 +101,9 @@ defmodule PandoraPlayer do
   """
   def handle_call(:current_station, _from, %{user_auth_token: nil} = state), do: {:reply, {:fail, "Not logged in."}, state}
   def handle_call(:current_station, _from, %{current_station: nil} = state), do: {:reply, {:fail, "No station currently selected."}, state}
-  def handle_call(:current_station, _from, %{current_station: current_station, stations: stations} = state) do 
-    Enum.find(stations, nil, &station_token_match?(&1, current_station))
-    |> current_station_reply(state)
+  def handle_call(:current_station, _from, %{current_station: current_station, stations: stations} = state) do
+   Enum.find(stations, nil, &station_token_match?(&1, current_station)) 
+   |> current_station_reply(state)
   end
 
   @doc """
@@ -121,9 +120,17 @@ defmodule PandoraPlayer do
   
   ### Private helpers ###
 
+  defp login_reply({:fail, _error}, _user, state), do: {:reply, {:fail, "Incorrect username/password."}, state}
+  defp login_reply({:ok, {user_auth_token, user_id, can_listen}}, {username, password}, state) do
+    if can_listen do
+      {:reply, :ok, %{state | user_auth_token: user_auth_token, user_id: user_id, username: username, password: password}}
+    else
+      {:reply, {:fail, "User cannot listen."}, state}
+    end
+  end
+
   defp get_stations_with_index(stations) do
-    Enum.map(stations, &Map.fetch!(&1, "stationName"))
-    |> Enum.with_index
+   Enum.map(stations, &Map.fetch!(&1, "stationName")) |> Enum.with_index
   end
 
   defp get_stations_reply(stations, state), do: {:reply, {:ok, stations, %{state | stations: stations}}}  
@@ -151,7 +158,7 @@ defmodule PandoraPlayer do
   end
 
   defp kill_audio_streamer(nil, nil), do: nil
-  defp kill_audio_streamer(pid, ref), do: Task.shutdown(pid, :brutal_kill) # FATALITY
+  defp kill_audio_streamer(pid, ref), do: Task.shutdown(%Task{pid: pid, ref: ref}, :brutal_kill) # FATALITY
 
   defp stream_song(%{"audioUrlMap" => %{"highQuality" => %{"audioUrl" => audioUrl}}}), do: AudioStreamer.stream_url(audioUrl)
   defp stream_song(%{"audioUrlMap" => %{"mediumQuality" => %{"audioUrl" => audioUrl}}}), do: AudioStreamer.stream_url(audioUrl)

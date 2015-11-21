@@ -64,7 +64,7 @@ defmodule PandoraApiClient do
     response = post!("auth.userLogin&" <> query, body)
 
     case response.body do
-      user when is_map(user) -> {:ok, %{user_auth_token: user["userAuthToken"], user_id: user["userId"], can_listen: user["canListen"]}}
+      user when is_map(user) -> {:ok, {user["userAuthToken"], user["userId"], user["canListen"]}}
       error when is_tuple(error) -> {:fail, error}
     end
   end
