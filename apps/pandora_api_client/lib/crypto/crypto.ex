@@ -48,12 +48,12 @@ defmodule PandoraApiClient.Crypto do
     |> Hexate.encode
   end  
 
-  defp chunk_body(body) when byte_size(body) >= 8 do
+  defp chunk_body(body) when byte_size(body) === 0, do: []
+  defp chunk_body(body) when byte_size(body) < 8, do: [String.ljust(body, 8)]
+  defp chunk_body(body) do
     {chunk, remaining} = String.split_at(body, 8)    
     [chunk | chunk_body(remaining)]
-  end
-  defp chunk_body(body) when byte_size(body) > 0, do: [String.ljust(body, 8)]
-  defp chunk_body(body) when byte_size(body) === 0, do: []
+  end  
 
   defp encrypt_chunk(chunk) do
     <<encryptedBytes :: size(64), _ ::binary>> = :crypto.blowfish_ecb_encrypt(@encrypt_key, chunk)
