@@ -6,7 +6,8 @@ defmodule PandoraPlayer do
     import Supervisor.Spec, warn: false
 
     children = [
-      worker(PandoraPlayer, [[name: __MODULE__]])
+      worker(PandoraPlayer, [[name: __MODULE__]]),
+      worker(GenEvent, [[name: PandoraPlayer.EventManager]])
     ]
 
     opts = [strategy: :one_for_one, name: PandoraPlayer.Supervisor]
@@ -139,11 +140,13 @@ defmodule PandoraPlayer do
     [new_song | playlist] = PandoraApiClient.get_playlist(current_station, partner_id, user_auth_token, user_id, sync_time, time_synced)
     kill_audio_streamer(audio_streamer, audio_streamer_monitor)    
     {audio_streamer, audio_streamer_monitor} = stream_song(new_song)
+    notify_new_song(new_song)
     %{state | now_playing: new_song, playlist: playlist, audio_streamer: audio_streamer, audio_streamer_monitor: audio_streamer_monitor}
   end  
   defp next_song(%{playlist: [new_song | playlist], audio_streamer: audio_streamer, audio_streamer_monitor: audio_streamer_monitor} = state) do
     kill_audio_streamer(audio_streamer, audio_streamer_monitor)
     {audio_streamer, audio_streamer_monitor} = stream_song(new_song)
+    notify_new_song(new_song)
     %{state | now_playing: new_song, playlist: playlist, audio_streamer: audio_streamer, audio_streamer_monitor: audio_streamer_monitor}
   end
 
@@ -153,4 +156,6 @@ defmodule PandoraPlayer do
   defp stream_song(%{"audioUrlMap" => %{"highQuality" => %{"audioUrl" => audioUrl}}}), do: AudioStreamer.stream_url(audioUrl)
   defp stream_song(%{"audioUrlMap" => %{"mediumQuality" => %{"audioUrl" => audioUrl}}}), do: AudioStreamer.stream_url(audioUrl)
   defp stream_song(%{"audioUrlMap" => %{"lowQuality" => %{"audioUrl" => audioUrl}}}), do: AudioStreamer.stream_url(audioUrl)
+
+  defp notify_new_song(%{"songName" => song, "artistName" => artist, "albumName" => album}), do: GenEvent.sync_notify(PandoraPlayer.EventManager, {song, artist, album})
 end
