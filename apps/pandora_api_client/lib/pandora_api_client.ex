@@ -69,7 +69,7 @@ defmodule PandoraApiClient do
     end
   end
 
-  @spec get_station_list(String.t, String.t, String.t, integer, integer) :: %{}
+  @spec get_station_list(String.t, String.t, String.t, integer, integer) :: {%{}, String.t}
   def get_station_list(partner_id, user_auth_token, user_id, sync_time, time_synced) do
     body = %{"includeStationArtUrl" => true,
       "userAuthToken" => user_auth_token,
@@ -82,8 +82,7 @@ defmodule PandoraApiClient do
 
     response = post!("user.getStationList&" <> query, body)
 
-    %{checksum: response.body["checksum"],
-    stations: response.body["stations"]}
+    {response.body["stations"], response.body["checksum"]}
   end
 
   @spec get_playlist(String.t, String.t, String.t, String.t, integer, integer) :: [%{}]

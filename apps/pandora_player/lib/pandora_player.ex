@@ -36,7 +36,7 @@ defmodule PandoraPlayer do
   end
 
   def current_station do
-    GenServer.call(__MODULE__, :get_station)
+    GenServer.call(__MODULE__, :current_station)
   end
 
   def now_playing do
@@ -47,7 +47,7 @@ defmodule PandoraPlayer do
 
   def init(:ok) do
     %{partner_auth_token: partner_auth_token, partner_id: partner_id, sync_time: sync_time, time_synced: time_synced} = PandoraApiClient.partner_login
-    {:ok, %{partner_auth_token: partner_auth_token, partner_id: partner_id, sync_time: sync_time, time_synced: time_synced, user_auth_token: nil, user_id: nil, username: nil, password: nil, stations: [], current_station: nil, playlist: [], now_playing: nil, audio_streamer: nil}}
+    {:ok, %{partner_auth_token: partner_auth_token, partner_id: partner_id, sync_time: sync_time, time_synced: time_synced, user_auth_token: nil, user_id: nil, username: nil, password: nil, stations: [], current_station: nil, playlist: [], now_playing: nil, audio_streamer: nil, audio_streamer_monitor: nil}}
   end
 
   @doc """
@@ -77,10 +77,11 @@ defmodule PandoraPlayer do
   Caches station list.
   """  
   def handle_call(:get_stations, _from, %{user_auth_token: nil} = state), do: {:reply, {:fail, "Not logged in."}, state}
-  def handle_call(:get_stations, _from, %{stations: stations} = state) when stations !== [], do: {:reply, {:ok, Enum.map(stations, &Map.fetch!(&1, "stationName")) |> Enum.with_index}, state}
+  def handle_call(:get_stations, _from, %{stations: stations} = state) when stations !== [], do: get_stations_with_index(stations) |> get_stations_reply(state)
   def handle_call(:get_stations, _from, %{partner_id: partner_id, user_auth_token: user_auth_token, user_id: user_id, sync_time: sync_time, time_synced: time_synced} = state) do
-    %{stations: stations} = PandoraApiClient.get_station_list(partner_id, user_auth_token, user_id, sync_time, time_synced)
-    {:reply, {:ok, Enum.map(stations, &Map.fetch!(&1, "stationName")) |> Enum.with_index}, %{state | stations: stations}}
+    {stations, _checksum} = PandoraApiClient.get_station_list(partner_id, user_auth_token, user_id, sync_time, time_synced)
+    get_stations_with_index(stations)
+    |> get_stations_reply(state)
   end
 
   @doc """
@@ -88,22 +89,21 @@ defmodule PandoraPlayer do
   If station list hasn't been cached yet, will get it now.
   """
   def handle_call({:set_station, _station_index}, _from, %{user_auth_token: nil} = state), do: {:reply, {:fail, "Not logged in."}, state}
-  def handle_call({:set_station, station_index}, _from, %{stations: stations} = state) when stations !== [], do: handle_set_station(station_index, state)
+  def handle_call({:set_station, station_index}, _from, %{stations: stations} = state) when stations !== [], do: Enum.fetch(stations, station_index) |> set_station_reply(%{state | stations: stations})
   def handle_call({:set_station, station_index}, _from, %{partner_id: partner_id, user_auth_token: user_auth_token, user_id: user_id, sync_time: sync_time, time_synced: time_synced} = state) do
-    %{stations: stations} = PandoraApiClient.get_station_list(partner_id, user_auth_token, user_id, sync_time, time_synced)
-    handle_set_station(station_index, %{state | stations: stations})
+    {stations, _checksum} = PandoraApiClient.get_station_list(partner_id, user_auth_token, user_id, sync_time, time_synced)
+    Enum.fetch(stations, station_index)
+    |> set_station_reply(%{state | stations: stations})
   end
 
   @doc """
   Callback for current_station/1.
   """
-  def handle_call(:get_station, _from, %{user_auth_token: nil} = state), do: {:reply, {:fail, "Not logged in."}, state}
-  def handle_call(:get_station, _from, %{current_station: nil} = state), do: {:reply, {:fail, "No station currently selected."}, state}
-  def handle_call(:get_station, _from, %{current_station: current_station, stations: stations} = state) do 
-    case Enum.find(stations, nil, &station_token_match?(&1, current_station)) do
-      nil -> {:reply, {:fail, "Error getting station."}, state}
-      station -> {:reply, {:ok, station["stationName"]}, state}
-    end
+  def handle_call(:current_station, _from, %{user_auth_token: nil} = state), do: {:reply, {:fail, "Not logged in."}, state}
+  def handle_call(:current_station, _from, %{current_station: nil} = state), do: {:reply, {:fail, "No station currently selected."}, state}
+  def handle_call(:current_station, _from, %{current_station: current_station, stations: stations} = state) do 
+    Enum.find(stations, nil, &station_token_match?(&1, current_station))
+    |> current_station_reply(state)
   end
 
   @doc """
@@ -113,35 +113,44 @@ defmodule PandoraPlayer do
   def handle_call(:now_playing, _from, %{current_station: nil} = state), do: {:reply, {:fail, "No station currently selected."}, state}
   def handle_call(:now_playing, _from, %{now_playing: %{"songName" => song, "artistName" => artist, "albumName" => album}} = state), do: {:reply, {:ok, %{song: song, artist: artist, album: album}}, state}
 
-
+  @doc """
+  Callback for current song ending.
+  """
+  def handle_info({:DOWN, monitor_reference, :process, pid, _reason}, %{audio_streamer: audio_streamer, audio_streamer_monitor: audio_streamer_monitor} = state) when pid === audio_streamer and monitor_reference == audio_streamer_monitor, do: {:noreply, next_song(%{state | audio_streamer: nil, audio_streamer_monitor: nil})}
+  
   ### Private helpers ###
 
-  defp handle_set_station(station_index, %{stations: stations} = state) do
-    case Enum.fetch(stations, station_index) do
-      :error -> {:reply, {:fail, "Station index out of range."}, state}
-      {:ok, %{"stationToken" => station_token}} -> 
-        new_state = next_song(%{state | current_station: station_token, now_playing: nil, playlist: []})
-        {:reply, :ok, new_state}        
-    end
+  defp get_stations_with_index(stations) do
+    Enum.map(stations, &Map.fetch!(&1, "stationName"))
+    |> Enum.with_index
   end
+
+  defp get_stations_reply(stations, state), do: {:reply, {:ok, stations, %{state | stations: stations}}}  
+
+  defp set_station_reply(:error, state), do: {:reply, {:fail, "Station index out of range."}, state}
+  defp set_station_reply({:ok, %{"stationToken" => station_token}}, state), do: {:reply, :ok, next_song(%{state | current_station: station_token, now_playing: nil, playlist: []})}
+
+  defp current_station_reply(nil, state), do: {:reply, {:fail, "Error getting station."}, state}
+  defp current_station_reply(%{"stationName" => stationName}, state), do: {:reply, {:ok, stationName}, state}  
 
   defp station_token_match?(station, station_token), do: station["stationToken"] === station_token
 
-  defp next_song(%{partner_id: partner_id, user_auth_token: user_auth_token, user_id: user_id, sync_time: sync_time, time_synced: time_synced, current_station: current_station, playlist: [], audio_streamer: audio_streamer} = state) do
+  defp next_song(%{partner_id: partner_id, user_auth_token: user_auth_token, user_id: user_id, sync_time: sync_time, time_synced: time_synced, current_station: current_station, playlist: [], audio_streamer: audio_streamer, audio_streamer_monitor: audio_streamer_monitor} = state) do
     [new_song | playlist] = PandoraApiClient.get_playlist(current_station, partner_id, user_auth_token, user_id, sync_time, time_synced)
-    # kill current audio stream
-    if audio_streamer === nil do
-      # KILL IT
-    end
-    # start streaming new_song
-    audio_url_map = new_song["audioUrlMap"]
-    high_quality = audio_url_map["highQuality"]
-    streamer = AudioStreamer.Process.stream_url(high_quality["audioUrl"])
-    %{state | now_playing: new_song, playlist: playlist}
+    kill_audio_streamer(audio_streamer, audio_streamer_monitor)    
+    {audio_streamer, audio_streamer_monitor} = stream_song(new_song)
+    %{state | now_playing: new_song, playlist: playlist, audio_streamer: audio_streamer, audio_streamer_monitor: audio_streamer_monitor}
   end  
-  defp next_song(%{playlist: [new_song | playlist]} = state) do
-    # kill current audio stream
-    # start streaming new_song
-    %{state | now_playing: new_song, playlist: playlist}
+  defp next_song(%{playlist: [new_song | playlist], audio_streamer: audio_streamer, audio_streamer_monitor: audio_streamer_monitor} = state) do
+    kill_audio_streamer(audio_streamer, audio_streamer_monitor)
+    {audio_streamer, audio_streamer_monitor} = stream_song(new_song)
+    %{state | now_playing: new_song, playlist: playlist, audio_streamer: audio_streamer, audio_streamer_monitor: audio_streamer_monitor}
   end
+
+  defp kill_audio_streamer(nil, nil), do: nil
+  defp kill_audio_streamer(pid, ref), do: Task.shutdown(pid, :brutal_kill) # FATALITY
+
+  defp stream_song(%{"audioUrlMap" => %{"highQuality" => %{"audioUrl" => audioUrl}}}), do: AudioStreamer.stream_url(audioUrl)
+  defp stream_song(%{"audioUrlMap" => %{"mediumQuality" => %{"audioUrl" => audioUrl}}}), do: AudioStreamer.stream_url(audioUrl)
+  defp stream_song(%{"audioUrlMap" => %{"lowQuality" => %{"audioUrl" => audioUrl}}}), do: AudioStreamer.stream_url(audioUrl)
 end

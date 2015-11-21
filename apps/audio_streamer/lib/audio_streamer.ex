@@ -3,7 +3,8 @@ defmodule AudioStreamer do
   ## Client
 
   def stream_url(url) do
-    Task.start_link(fn -> init(url) end)
+    {:ok, pid} = Task.start_link(fn -> init(url) end)
+    {pid, Process.monitor(pid)}
   end
 
   def pause(task) do
