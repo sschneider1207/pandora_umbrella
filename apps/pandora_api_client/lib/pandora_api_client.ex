@@ -102,11 +102,11 @@ defmodule PandoraApiClient do
   end
 
   @spec add_feedback(String.t, String.t, boolean, String.t, String.t, String.t, integer, integer) :: %{}
-  def add_feedback(station_token, track_oken, is_positive, partner_id, user_auth_token, user_id, sync_time, time_synced) do
+  def add_feedback(station_token, track_token, is_positive, partner_id, user_auth_token, user_id, sync_time, time_synced) do
     body = %{"userAuthToken" => user_auth_token,
       "syncTime" => adjusted_sync_time(sync_time, time_synced),
       "stationToken" => station_token,
-      "trackToken" => track_oken,
+      "trackToken" => track_token,
       "isPositive" => is_positive} |> Poison.encode! |> Crypto.encrypt_body
 
     query = URI.encode_query([
