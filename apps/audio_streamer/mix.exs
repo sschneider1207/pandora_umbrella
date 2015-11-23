@@ -16,7 +16,7 @@ defmodule AudioStreamer.Mixfile do
   #
   # Type "mix help compile.app" for more information
   def application do
-    [applications: [:logger, :httpoison]]
+    [applications: [:logger, :httpoison, :erlaudio]]
   end
 
   # Dependencies can be Hex packages:
@@ -33,6 +33,7 @@ defmodule AudioStreamer.Mixfile do
   #
   # Type "mix help deps" for more examples and options
   defp deps do
-    [{:httpoison, "~> 0.7.2"}]
+    [{:httpoison, "~> 0.7.2"},
+    {:erlaudio, git: "https://github.com/asonge/erlaudio.git"}]
   end
 end

@@ -160,9 +160,10 @@ defmodule PandoraPlayer do
   defp kill_audio_streamer(nil, nil), do: nil
   defp kill_audio_streamer(pid, ref), do: Task.shutdown(%Task{pid: pid, ref: ref}, :brutal_kill) # FATALITY
 
-  defp stream_song(%{"audioUrlMap" => %{"highQuality" => %{"audioUrl" => audioUrl}}}), do: AudioStreamer.stream_url(audioUrl)
-  defp stream_song(%{"audioUrlMap" => %{"mediumQuality" => %{"audioUrl" => audioUrl}}}), do: AudioStreamer.stream_url(audioUrl)
-  defp stream_song(%{"audioUrlMap" => %{"lowQuality" => %{"audioUrl" => audioUrl}}}), do: AudioStreamer.stream_url(audioUrl)
+  # PortAudio can't work with 64bitrate audio
+  defp stream_song(%{"audioUrlMap" => %{"highQuality" => %{"audioUrl" => audioUrl, "bitrate" => "32"}}}), do: AudioStreamer.stream_url(audioUrl)
+  defp stream_song(%{"audioUrlMap" => %{"mediumQuality" => %{"audioUrl" => audioUrl, "bitrate" => "32"}}}), do: AudioStreamer.stream_url(audioUrl)
+  defp stream_song(%{"audioUrlMap" => %{"lowQuality" => %{"audioUrl" => audioUrl, "bitrate" => "32"}}}), do: AudioStreamer.stream_url(audioUrl)
 
   defp notify_new_song(%{"songName" => song, "artistName" => artist, "albumName" => album}), do: GenEvent.sync_notify(PandoraPlayer.EventManager, {song, artist, album})
 end

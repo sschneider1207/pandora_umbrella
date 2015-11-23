@@ -1,5 +1,7 @@
 defmodule AudioStreamer do
 
+@py_script ~S(E:\git\pandora_umbrella\priv_dir\elixir_port_audio.py)
+
   ## Client
 
   def stream_url(url) do
@@ -18,28 +20,30 @@ defmodule AudioStreamer do
   ## Task
 
   def init(url) do
-    file = File.open!("test.mp4", [:append])
+    IO.puts("Opening port")
+    port = Port.open({:spawn, "python \"#{@py_script}\""}, [:binary]) 
     %{id: stream_id} = HTTPoison.get!(url, %{"Accept" => "audio/mpeg"}, [stream_to: self, recv_timeout: :infinity])
-    loop(%{stream_id: stream_id, file: file, paused: false})
+    loop(%{stream_id: stream_id, port: port, paused: false})
   end
 
-  defp loop(%{stream_id: stream_id, file: file, paused: paused} = state) do
+  defp inf, do: inf
+
+  defp loop(%{stream_id: stream_id, port: port, paused: paused} = state) do
     receive do
       %HTTPoison.AsyncStatus{code: 200, id: ^stream_id} -> loop(state)
       %HTTPoison.AsyncHeaders{id: ^stream_id} -> loop(state)
-      %HTTPoison.AsyncChunk{id: ^stream_id, chunk: chunk} -> 
-        IO.binwrite(file, chunk)
+      %HTTPoison.AsyncChunk{id: ^stream_id, chunk: chunk} ->
+        Port.command(port, chunk)
         loop(state)
-      %HTTPoison.AsyncEnd{id: ^stream_id} -> terminate(file)
+      %HTTPoison.AsyncEnd{id: ^stream_id} -> IO.puts("end"); inf
       :pause -> loop(%{state | paused: not paused})
-      :kill -> terminate(file)
-      _ -> loop(state)
-    end
-    
+      :kill -> terminate()
+      {^port, {:data, result}} -> IO.inspect(result); loop(state)
+      msg -> IO.inspect(msg); loop(state)
+    end    
   end
 
-  defp terminate(file) do
-    File.close(file)
+  defp terminate() do
     Process.exit(self(), :normal)
   end
 end
