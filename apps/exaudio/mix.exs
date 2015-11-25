@@ -1,8 +1,8 @@
-defmodule AudioStreamer.Mixfile do
+defmodule Exaudio.Mixfile do
   use Mix.Project
 
   def project do
-    [app: :audio_streamer,
+    [app: :exaudio,
      version: "0.0.1",
      deps_path: "../../deps",
      lockfile: "../../mix.lock",
@@ -16,7 +16,7 @@ defmodule AudioStreamer.Mixfile do
   #
   # Type "mix help compile.app" for more information
   def application do
-    [applications: [:logger, :httpoison]]
+    [applications: [:logger, :erlaudio]]
   end
 
   # Dependencies can be Hex packages:
@@ -33,7 +33,6 @@ defmodule AudioStreamer.Mixfile do
   #
   # Type "mix help deps" for more examples and options
   defp deps do
-    [{:httpoison, "~> 0.7.2"},
-    {:exaudio, umbrella: true}]
+    [{:erlaudio, git: "https://github.com/asonge/erlaudio.git"}]
   end
 end
