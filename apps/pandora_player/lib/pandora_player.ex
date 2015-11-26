@@ -47,7 +47,7 @@ defmodule PandoraPlayer do
   ### Server ###
 
   def init(:ok) do
-    %{partner_auth_token: partner_auth_token, partner_id: partner_id, sync_time: sync_time, time_synced: time_synced} = PandoraApiClient.partner_login
+    {partner_auth_token, partner_id, sync_time, time_synced} = PandoraApiClient.partner_login
     {:ok, %{partner_auth_token: partner_auth_token, partner_id: partner_id, sync_time: sync_time, time_synced: time_synced, user_auth_token: nil, user_id: nil, username: nil, password: nil, stations: [], current_station: nil, playlist: [], now_playing: nil, audio_streamer: nil, audio_streamer_monitor: nil}}
   end
 
@@ -69,10 +69,10 @@ defmodule PandoraPlayer do
   @doc """
   Callback for list_stations/1.
   Caches station list.
-  """  
+  """
   def handle_call(:get_stations, _from, %{user_auth_token: nil} = state), do: {:reply, {:fail, "Not logged in."}, state}
-  def handle_call(:get_stations, _from, %{stations: stations} = state) when stations !== [] do 
-    get_stations_with_index(stations) 
+  def handle_call(:get_stations, _from, %{stations: stations} = state) when stations !== [] do
+    get_stations_with_index(stations)
     |> get_stations_reply(state)
   end
   def handle_call(:get_stations, _from, %{partner_id: partner_id, user_auth_token: user_auth_token, user_id: user_id, sync_time: sync_time, time_synced: time_synced} = state) do
@@ -87,7 +87,7 @@ defmodule PandoraPlayer do
   """
   def handle_call({:set_station, _station_index}, _from, %{user_auth_token: nil} = state), do: {:reply, {:fail, "Not logged in."}, state}
   def handle_call({:set_station, station_index}, _from, %{stations: stations} = state) when stations !== [] do
-   Enum.fetch(stations, station_index) 
+   Enum.fetch(stations, station_index)
    |> set_station_reply(%{state | stations: stations})
  end
   def handle_call({:set_station, station_index}, _from, %{partner_id: partner_id, user_auth_token: user_auth_token, user_id: user_id, sync_time: sync_time, time_synced: time_synced} = state) do
@@ -102,7 +102,7 @@ defmodule PandoraPlayer do
   def handle_call(:current_station, _from, %{user_auth_token: nil} = state), do: {:reply, {:fail, "Not logged in."}, state}
   def handle_call(:current_station, _from, %{current_station: nil} = state), do: {:reply, {:fail, "No station currently selected."}, state}
   def handle_call(:current_station, _from, %{current_station: current_station, stations: stations} = state) do
-   Enum.find(stations, nil, &station_token_match?(&1, current_station)) 
+   Enum.find(stations, nil, &station_token_match?(&1, current_station))
    |> current_station_reply(state)
   end
 
@@ -117,7 +117,7 @@ defmodule PandoraPlayer do
   Callback for current song ending.
   """
   def handle_info({:DOWN, monitor_reference, :process, pid, _reason}, %{audio_streamer: audio_streamer, audio_streamer_monitor: audio_streamer_monitor} = state) when pid === audio_streamer and monitor_reference == audio_streamer_monitor, do: {:noreply, next_song(%{state | audio_streamer: nil, audio_streamer_monitor: nil})}
-  
+
   ### Private helpers ###
 
   defp login_reply({:fail, _error}, _user, state), do: {:reply, {:fail, "Incorrect username/password."}, state}
@@ -133,23 +133,23 @@ defmodule PandoraPlayer do
    Enum.map(stations, &Map.fetch!(&1, "stationName")) |> Enum.with_index
   end
 
-  defp get_stations_reply(stations, state), do: {:reply, {:ok, stations, %{state | stations: stations}}}  
+  defp get_stations_reply(stations, state), do: {:reply, {:ok, stations, %{state | stations: stations}}}
 
   defp set_station_reply(:error, state), do: {:reply, {:fail, "Station index out of range."}, state}
   defp set_station_reply({:ok, %{"stationToken" => station_token}}, state), do: {:reply, :ok, next_song(%{state | current_station: station_token, now_playing: nil, playlist: []})}
 
   defp current_station_reply(nil, state), do: {:reply, {:fail, "Error getting station."}, state}
-  defp current_station_reply(%{"stationName" => stationName}, state), do: {:reply, {:ok, stationName}, state}  
+  defp current_station_reply(%{"stationName" => stationName}, state), do: {:reply, {:ok, stationName}, state}
 
   defp station_token_match?(station, station_token), do: station["stationToken"] === station_token
 
   defp next_song(%{partner_id: partner_id, user_auth_token: user_auth_token, user_id: user_id, sync_time: sync_time, time_synced: time_synced, current_station: current_station, playlist: [], audio_streamer: audio_streamer, audio_streamer_monitor: audio_streamer_monitor} = state) do
     [new_song | playlist] = PandoraApiClient.get_playlist(current_station, partner_id, user_auth_token, user_id, sync_time, time_synced)
-    kill_audio_streamer(audio_streamer, audio_streamer_monitor)    
+    kill_audio_streamer(audio_streamer, audio_streamer_monitor)
     {audio_streamer, audio_streamer_monitor} = stream_song(new_song)
     notify_new_song(new_song)
     %{state | now_playing: new_song, playlist: playlist, audio_streamer: audio_streamer, audio_streamer_monitor: audio_streamer_monitor}
-  end  
+  end
   defp next_song(%{playlist: [new_song | playlist], audio_streamer: audio_streamer, audio_streamer_monitor: audio_streamer_monitor} = state) do
     kill_audio_streamer(audio_streamer, audio_streamer_monitor)
     {audio_streamer, audio_streamer_monitor} = stream_song(new_song)
