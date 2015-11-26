@@ -18,6 +18,8 @@ defmodule Exaudio do
 
   @type pa_error :: {:error, error}
 
+  @type handle :: binary
+
   ## Devices
 
   @spec default_input_device :: %Exaudio.Device{}
@@ -34,7 +36,8 @@ defmodule Exaudio do
 
   @spec device(integer) :: %Exaudio.Device{}
   def device(index) do
-    :erlaudio.device(index)
+    index
+    |> :erlaudio.device
     |> Exaudio.Device.new
   end
 
@@ -48,19 +51,22 @@ defmodule Exaudio do
 
   @spec default_input_params(format) :: %Exaudio.DeviceParams{}
   def default_input_params(sample_format) do
-    :erlaudio.default_input_params(sample_format)
+    sample_format
+    |> :erlaudio.default_input_params
     |> Exaudio.DeviceParams.new
   end
 
   @spec default_output_params(format) :: %Exaudio.DeviceParams{}
   def default_output_params(sample_format) do
-    :erlaudio.default_output_params(sample_format)
+    sample_format
+    |> :erlaudio.default_output_params
     |> Exaudio.DeviceParams.new
   end
 
   @spec input_device_params(%Exaudio.Device{} | integer, format) :: %Exaudio.DeviceParams{}
   def input_device_params(index, sample_format) when is_integer(index) do
-    :erlaudio.input_device_params(index, sample_format)
+    index
+    |> :erlaudio.input_device_params(sample_format)
     |> Exaudio.DeviceParams.new
   end
   def input_device_params(%Exaudio.Device{} = device, sample_format) do
@@ -72,7 +78,8 @@ defmodule Exaudio do
 
   @spec output_device_params(%Exaudio.Device{} | integer, format) :: %Exaudio.DeviceParams{}
   def output_device_params(index, sample_format) when is_integer(index) do
-    :erlaudio.output_device_params(index, sample_format)
+    index
+    |> :erlaudio.output_device_params(sample_format)
     |> Exaudio.DeviceParams.new
   end
   def output_device_params(%Exaudio.Device{} = device, sample_format) do
@@ -83,6 +90,29 @@ defmodule Exaudio do
   end
 
   ## Streams
+
+  @spec stream_format_supported(%Exaudio.DeviceParams{} | nil, %Exaudio.DeviceParams{} | nil, float) :: :ok | pa_error
+  def stream_format_supported(%Exaudio.DeviceParams{} = input, nil, sample_rate) do
+    input
+    |> Exaudio.DeviceParams.to_record
+    |> :erlaudio.stream_format_supported(:null, sample_rate)
+  end
+  def stream_format_supported(nil, %Exaudio.DeviceParams{} = output, sample_rate) do
+    output = Exaudio.DeviceParams.to_record(output)
+    :erlaudio.stream_format_supported(:null, output, sample_rate)
+  end
+
+    @spec stream_open(%Exaudio.DeviceParams{} | nil, %Exaudio.DeviceParams{} | nil, float, integer) :: {:ok, handle} | pa_error
+    def stream_open(%Exaudio.DeviceParams{} = input, nil, sample_rate, frames_per_buffer) do
+      input
+      |> Exaudio.DeviceParams.to_record
+      |> :erlaudio.stream_open(:null, sample_rate, frames_per_buffer)
+    end
+    def stream_open(nil, %Exaudio.DeviceParams{} = output, sample_rate, frames_per_buffer) do
+      output = Exaudio.DeviceParams.to_record(output)
+      :erlaudio.stream_open(:null, output, sample_rate, frames_per_buffer)
+    end
+
 
   ## Portaudio
 
