@@ -18,6 +18,8 @@ defmodule PandoraPhoenix.Router do
 
     get "/", HomeController, :prompt_login
     post "/", HomeController, :login
+
+    get "/player", PlayerController, :index
   end
 
   # Other scopes may use custom stacks.
