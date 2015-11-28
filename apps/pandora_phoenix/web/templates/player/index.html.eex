@@ -29,7 +29,7 @@
     <% end %>
 
     <div id="content">
-      <p>Lyrics will go here</p>
+      <%= song_lyrics(@now_playing) %>
     </div>
 
 

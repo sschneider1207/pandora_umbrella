@@ -34,6 +34,7 @@ defmodule AudioStreamer.Mixfile do
   # Type "mix help deps" for more examples and options
   defp deps do
     [{:httpoison, "~> 0.7.2"},
-    {:exaudio, umbrella: true}]
+    #{:exaudio, umbrella: true}]
+  ]
   end
 end

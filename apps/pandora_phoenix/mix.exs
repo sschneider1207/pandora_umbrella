@@ -19,7 +19,7 @@ defmodule PandoraPhoenix.Mixfile do
   # Type `mix help compile.app` for more information.
   def application do
     [mod: {PandoraPhoenix, []},
-     applications: [:phoenix, :phoenix_html, :cowboy, :logger, :pandora_api_client]]
+     applications: [:phoenix, :phoenix_html, :cowboy, :logger, :pandora_api_client, :floki]]
   end
 
   # Specifies which paths to compile per environment.
@@ -34,6 +34,7 @@ defmodule PandoraPhoenix.Mixfile do
     {:phoenix_html, "~> 2.1"},
     {:phoenix_live_reload, "~> 1.0", only: :dev},
     {:cowboy, "~> 1.0"},
-    {:pandora_api_client, in_umbrella: true}]
+    {:pandora_api_client, in_umbrella: true},
+    {:floki, "~> 0.7.1"}]
   end
 end
