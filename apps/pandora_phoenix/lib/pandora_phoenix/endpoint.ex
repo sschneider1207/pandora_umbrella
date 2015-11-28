@@ -31,9 +31,10 @@ defmodule PandoraPhoenix.Endpoint do
   plug Plug.Head
 
   plug Plug.Session,
-    store: :cookie,
-    key: "_pandora_phoenix_key",
-    signing_salt: "k4mKoHws"
+    store: :ets,#:cookie,
+    key: "sid",#"_pandora_phoenix_key",
+    table: :session
+    #signing_salt: "k4mKoHws"
 
   plug PandoraPhoenix.Router
 end

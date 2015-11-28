@@ -2,7 +2,11 @@ defmodule PandoraPhoenix.HomeController do
   use PandoraPhoenix.Web, :controller
 
   def prompt_login(conn, _params) do
-    render(conn, "login.html")
+    conn = fetch_session(conn)
+    case get_session(conn, :username) do
+      nil -> render(conn, "login.html")
+      _ -> redirect(conn, to: player_path(PandoraPhoenix.Endpoint, :index))
+    end
   end
 
   def login(conn, %{"login" => user} = _params) do
@@ -10,6 +14,12 @@ defmodule PandoraPhoenix.HomeController do
     |> partner_login
     |> try_login(user)
     |> login_reply
+  end
+
+  def delete(conn, _params) do
+    conn
+    |> clear_session
+    |> send_resp(204, "")
   end
 
   defp partner_login(conn) do
@@ -36,7 +46,7 @@ defmodule PandoraPhoenix.HomeController do
     |> put_session(:password, password)
     |> put_session(:user_auth_token, user_auth_token)
     |> put_session(:user_id, user_auth_token)
-    |> json(:ok)
+    |> redirect(to: player_path(PandoraPhoenix.Endpoint, :index))
   end
   defp login_reply({conn, {:fail, {_error, _code}}}), do: login_reply({conn, {:fail, "Invalid username or password."}})
   defp login_reply({conn, {:fail, error}}) do

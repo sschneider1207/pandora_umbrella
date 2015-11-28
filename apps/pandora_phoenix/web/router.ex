@@ -18,6 +18,7 @@ defmodule PandoraPhoenix.Router do
 
     get "/", HomeController, :prompt_login
     post "/", HomeController, :login
+    get "/clear", HomeController, :delete
 
     get "/player", PlayerController, :index
   end

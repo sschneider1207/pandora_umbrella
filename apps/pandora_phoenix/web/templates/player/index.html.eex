@@ -1,0 +1,44 @@
+<div class="container">
+    <div id="sidebar">
+      <h3> Stations </h3>
+      <%= for station <- @stations do %>
+        <%= if station["stationToken"] == @selected_station do %>
+          <div class="station-selected">
+        <% else %>
+          <div class="station">
+        <% end %>
+        <%= link station["stationName"], to: player_path(@conn, :index, station: station["stationToken"]), method: :get %>
+        </div>
+        <% end %>
+    </div>
+
+    <div id="header">
+      <h4> Song: <%= song_name(@now_playing) %></h4>
+      <h4> Artist: <%= artist_name(@now_playing) %></h4>
+      <h4> Album: <%= album_name(@now_playing) %></h4>
+    </div>
+
+    <%= if @now_playing != nil do %>
+      <div id="player">
+        <audio preload="auto" autoplay controls onended="next_song()">
+          <source src="<%= song_url_high(@now_playing) %>" type="audio/mpeg">
+          <source src="<%= song_url_med(@now_playing) %>" type="audio/mpeg">
+          <source src="<%= song_url_low(@now_playing) %>" type="audio/mpeg">
+        </audio>
+      </div>
+    <% end %>
+
+    <div id="content">
+      <p>Lyrics will go here</p>
+    </div>
+
+
+</div>
+
+<script>
+
+  function next_song() {
+    window.location = "<%= player_path(@conn, :index) %>"
+  }
+
+</script>
