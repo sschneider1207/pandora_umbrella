@@ -10,7 +10,6 @@ let chatInput = $("#chat-input")
 let messagesContainer = $("#messages")
 
 chatInput.on("keypress", event => {
-  console.log("test from socket")
   if(event.keyCode === 13){
     channel.push("new_msg", {body: chatInput.val()})
     chatInput.val("")
