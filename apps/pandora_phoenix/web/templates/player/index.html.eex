@@ -13,6 +13,7 @@
     </div>
 
     <div id="header">
+      <h3> Now Playing </h3>
       <h4> Song: <%= song_name(@now_playing) %></h4>
       <h4> Artist: <%= artist_name(@now_playing) %></h4>
       <h4> Album: <%= album_name(@now_playing) %></h4>
@@ -28,17 +29,12 @@
       </div>
     <% end %>
 
-    <div id="content">
-      <%= song_lyrics(@now_playing) %>
-    </div>
-
+    <%= raw(song_lyrics(@now_playing)) %>
 
 </div>
 
 <script>
-
   function next_song() {
     window.location = "<%= player_path(@conn, :index) %>"
   }
-
 </script>

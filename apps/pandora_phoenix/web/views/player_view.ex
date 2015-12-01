@@ -18,6 +18,7 @@ defmodule PandoraPhoenix.PlayerView do
 
   def song_lyrics(nil), do: "No song playing."
   def song_lyrics(%{"songName" => song, "artistName" => artist}) do
+    "Lyrics not implemented yet."
     url = URI.encode("http://lyrics.wikia.com/api.php?action=lyrics&song=#{song}&artist=#{artist}&fmt=json")
     %{body: body} = HTTPoison.get!(url)
     body
@@ -37,8 +38,9 @@ defmodule PandoraPhoenix.PlayerView do
   defp get_lyrics({:fail, reason}), do: reason
   defp get_lyrics(url) do
     %{body: html} = HTTPoison.get!(url, [], [follow_redirect: true])
-    raw = html |> Floki.find(".lyricbox") |> Floki.raw_html
-    "Lyrics not implemented"
+    regex = ~r/<script>.*<\/script>/
+    raw_html = html |> Floki.find(".lyricbox") |> Floki.raw_html
+    Regex.replace(regex, raw_html, "")
   end
 
 end

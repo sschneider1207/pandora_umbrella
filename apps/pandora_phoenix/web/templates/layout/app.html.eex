@@ -9,6 +9,9 @@
 
     <title>Elixir Pandora</title>
     <link rel="stylesheet" href="<%= static_path(@conn, "/css/app.css") %>">
+    <script src="https://ajax.googleapis.com/ajax/libs/jquery/1.11.3/jquery.min.js"></script>
+    <script src="<%= static_path(@conn, "/js/app.js") %>"></script>
+    <script>require("web/static/js/app")</script>
   </head>
 
   <body>
@@ -16,8 +19,11 @@
       <p class="alert alert-info" role="alert"><%= get_flash(@conn, :info) %></p>
       <p class="alert alert-danger" role="alert"><%= get_flash(@conn, :error) %></p>
 
-      <%= @inner %>
-<!-- /container -->
-    <script src="<%= static_path(@conn, "/js/app.js") %>"></script>
+      <div>
+        <%= @inner %>
+      </div>
+
+      <!-- /container -->
+
   </body>
 </html>

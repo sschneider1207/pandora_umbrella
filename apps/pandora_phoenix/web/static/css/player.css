@@ -4,7 +4,7 @@
 }
 
 #sidebar {
-  border: 1px solid #000;
+  /*border: 1px solid #000;*/
   position: fixed;
   float: left;
   top: 0;
@@ -14,7 +14,7 @@
 }
 
 #sidebar > h3 {
-  text-align: center;
+  /*text-align: center;*/
 }
 
 #sidebar > .station-selected {
@@ -22,13 +22,13 @@
 }
 
 #header {
-  border: 1px solid #000;
+  /*border: 1px solid #000;*/
   width: 100%;
   margin: 0 0 5px 0;
 }
 
 #content {
-  border: 1px solid #000;
+  /*border: 1px solid #000;*/
   width: 100%;
   margin: 5px 0 5px 0;
 }
