@@ -17,4 +17,51 @@ import "../../../deps/phoenix_html/web/static/js/phoenix_html"
 //
 // Local files can be imported directly using relative
 // paths "./socket" or full ones "web/static/js/socket".
-import socket from "./socket"
+//import socket from "./socket"
+import {Socket} from "deps/phoenix/web/static/js/phoenix"
+
+class App {
+  static init() {
+    let socket = new Socket("/socket")
+    socket.connect()
+
+    let channel = socket.channel("player", {})
+    let stations = $("#stations-select")
+
+    stations.on("change", App.set_station)
+
+    channel.on("stations", App.list_stations)
+    channel.on("now_playing", App.now_playing)
+
+    // join channel
+    channel.join()
+      .receive("ok", resp => {
+        channel.push("stations", {
+          checksum: null
+        })
+      })
+      .receive("error", resp => { console.log("Unable to join", resp) })
+  }
+
+  static set_station() {
+    let optionSelected = $("option:selected", this);
+    console.log(optionSelected.val())
+  }
+
+  static list_stations(payload) {
+    let stations = $("#stations-select")
+    console.log("Stations", payload)
+    stations.data('checksum', payload.checksum)
+    payload.stations.forEach(entry => {
+      stations.append($("<option>", {value: "station-value"}).text(entry))
+    })
+  }
+
+  static now_playing(payload) {
+    console.log("Now playing", payload)
+  }
+}
+
+$( () => App.init() )
+
+export default App

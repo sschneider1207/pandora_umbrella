@@ -1,15 +1,8 @@
 <div class="container">
-    <div id="sidebar">
+    <div id="stations">
       <h3> Stations </h3>
-      <%= for station <- @stations do %>
-        <%= if station["stationToken"] == @selected_station do %>
-          <div class="station-selected">
-        <% else %>
-          <div class="station">
-        <% end %>
-        <%= link station["stationName"], to: player_path(@conn, :index, station: station["stationToken"]), method: :get %>
-        </div>
-        <% end %>
+      <select id="stations-select">
+      </select>
     </div>
 
     <div id="header">
