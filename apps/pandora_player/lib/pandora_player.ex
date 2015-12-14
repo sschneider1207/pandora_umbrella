@@ -48,7 +48,7 @@ defmodule PandoraPlayer do
 
   def init(:ok) do
     {partner_auth_token, partner_id, sync_time, time_synced} = PandoraApiClient.partner_login
-    {:ok, %{partner_auth_token: partner_auth_token, partner_id: partner_id, sync_time: sync_time, time_synced: time_synced, user_auth_token: nil, user_id: nil, username: nil, password: nil, stations: [], current_station: nil, playlist: [], now_playing: nil, audio_streamer: nil, audio_streamer_monitor: nil}}
+    {:ok, %{partner_auth_token: partner_auth_token, partner_id: partner_id, sync_time: sync_time, time_synced: time_synced, user_auth_token: nil, user_id: nil, username: nil, password: nil, stations: [], checksum: nil, current_station: nil, playlist: [], now_playing: nil}}
   end
 
   @doc """
@@ -71,14 +71,12 @@ defmodule PandoraPlayer do
   Caches station list.
   """
   def handle_call(:get_stations, _from, %{user_auth_token: nil} = state), do: {:reply, {:fail, "Not logged in."}, state}
-  def handle_call(:get_stations, _from, %{stations: stations} = state) when stations !== [] do
-    get_stations_with_index(stations)
-    |> get_stations_reply(state)
+  def handle_call(:get_stations, _from, %{stations: stations, checksum: checksum} = state) when stations !== [] do
+    {:reply, {:ok, get_stations_with_index(stations), checksum}, state}
   end
   def handle_call(:get_stations, _from, %{partner_id: partner_id, user_auth_token: user_auth_token, user_id: user_id, sync_time: sync_time, time_synced: time_synced} = state) do
-    {stations, _checksum} = PandoraApiClient.get_station_list(partner_id, user_auth_token, user_id, sync_time, time_synced)
-    get_stations_with_index(stations)
-    |> get_stations_reply(state)
+    {stations, checksum} = PandoraApiClient.get_station_list(partner_id, user_auth_token, user_id, sync_time, time_synced)
+    {:reply, {:ok, get_stations_with_index(stations), checksum}, %{state | stations: stations, checksum: checksum}}
   end
 
   @doc """
@@ -133,8 +131,6 @@ defmodule PandoraPlayer do
    Enum.map(stations, &Map.fetch!(&1, "stationName")) |> Enum.with_index
   end
 
-  defp get_stations_reply(stations, state), do: {:reply, {:ok, stations}, %{state | stations: stations}}
-
   defp set_station_reply(:error, state), do: {:reply, {:fail, "Station index out of range."}, state}
   defp set_station_reply({:ok, %{"stationToken" => station_token}}, state), do: {:reply, :ok, next_song(%{state | current_station: station_token, now_playing: nil, playlist: []})}
 
@@ -145,25 +141,13 @@ defmodule PandoraPlayer do
 
   defp next_song(%{partner_id: partner_id, user_auth_token: user_auth_token, user_id: user_id, sync_time: sync_time, time_synced: time_synced, current_station: current_station, playlist: [], audio_streamer: audio_streamer, audio_streamer_monitor: audio_streamer_monitor} = state) do
     [new_song | playlist] = PandoraApiClient.get_playlist(current_station, partner_id, user_auth_token, user_id, sync_time, time_synced)
-    kill_audio_streamer(audio_streamer, audio_streamer_monitor)
-    {audio_streamer, audio_streamer_monitor} = stream_song(new_song)
     notify_new_song(new_song)
-    %{state | now_playing: new_song, playlist: playlist, audio_streamer: audio_streamer, audio_streamer_monitor: audio_streamer_monitor}
+    %{state | now_playing: new_song, playlist: playlist}
   end
   defp next_song(%{playlist: [new_song | playlist], audio_streamer: audio_streamer, audio_streamer_monitor: audio_streamer_monitor} = state) do
-    kill_audio_streamer(audio_streamer, audio_streamer_monitor)
-    {audio_streamer, audio_streamer_monitor} = stream_song(new_song)
     notify_new_song(new_song)
-    %{state | now_playing: new_song, playlist: playlist, audio_streamer: audio_streamer, audio_streamer_monitor: audio_streamer_monitor}
+    %{state | now_playing: new_song, playlist: playlist}
   end
-
-  defp kill_audio_streamer(nil, nil), do: nil
-  defp kill_audio_streamer(pid, ref), do: Task.shutdown(%Task{pid: pid, ref: ref}, :brutal_kill) # FATALITY
-
-  # PortAudio can't work with 64bitrate audio
-  defp stream_song(%{"audioUrlMap" => %{"highQuality" => %{"audioUrl" => audioUrl, "bitrate" => "32"}}}), do: AudioStreamer.stream_url(audioUrl)
-  defp stream_song(%{"audioUrlMap" => %{"mediumQuality" => %{"audioUrl" => audioUrl, "bitrate" => "32"}}}), do: AudioStreamer.stream_url(audioUrl)
-  defp stream_song(%{"audioUrlMap" => %{"lowQuality" => %{"audioUrl" => audioUrl, "bitrate" => "32"}}}), do: AudioStreamer.stream_url(audioUrl)
 
   defp notify_new_song(%{"songName" => song, "artistName" => artist, "albumName" => album}), do: GenEvent.sync_notify(PandoraPlayer.EventManager, {song, artist, album})
 end

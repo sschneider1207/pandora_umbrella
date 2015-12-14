@@ -11,7 +11,7 @@ defmodule PandoraPhoenix.PlayerChannel do
   end
   def handle_in("list_stations", _msg, socket) do
     case PandoraPlayer.list_stations do
-      {:ok, stations} -> broadcast!(socket, "list_stations", %{checksum: "checksum123", stations: Enum.map(stations, fn {name, index} -> %{name: name, index: index} end)})
+      {:ok, stations, checksum} -> broadcast!(socket, "list_stations", %{checksum: checksum, stations: Enum.map(stations, fn {name, index} -> %{name: name, index: index} end)})
       {:fail, reason} -> IO.puts(reason)
     end
     {:noreply, socket}
