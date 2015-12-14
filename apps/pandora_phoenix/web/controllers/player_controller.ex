@@ -25,10 +25,11 @@ defmodule PandoraPhoenix.PlayerController do
   end
 
   defp render_player(conn, _params) do
-    {conn, stations} = get_stations(conn)
-    selected_station = get_session(conn, :current_station)
-    {conn, playlist, now_playing} = get_playlist(conn, selected_station)
-    render(conn, "index.html", [stations: stations, selected_station: selected_station, playlist: playlist, now_playing: now_playing])
+    #{conn, stations} = get_stations(conn)
+    #selected_station = get_session(conn, :current_station)
+    #{conn, playlist, now_playing} = get_playlist(conn, selected_station)
+    #render(conn, "index.html", [stations: stations, selected_station: selected_station, playlist: playlist, now_playing: now_playing])
+    render(conn, "index.html", [stations: nil, selected_station: nil, playlist: nil, now_playing: nil])
   end
 
   ## station helpers

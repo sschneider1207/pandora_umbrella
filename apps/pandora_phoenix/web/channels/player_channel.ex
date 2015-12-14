@@ -5,19 +5,22 @@ defmodule PandoraPhoenix.PlayerChannel do
     {:ok, socket}
   end
 
-  def handle_in("stations", %{"checksum" => nil}, socket) do
-    # get station list
-    broadcast!(socket, "stations", %{checksum: "checksum123", stations: ["1", "2", "3"]})
+  def handle_in("list_stations", %{"checksum" => checksum}, socket) do
+    # verify checksum
+    handle_in("list_stations", nil, socket)
+  end
+  def handle_in("list_stations", _msg, socket) do
+    case PandoraPlayer.list_stations do
+      {:ok, stations} -> broadcast!(socket, "list_stations", %{checksum: "checksum123", stations: Enum.map(stations, fn {name, index} -> %{name: name, index: index} end)})
+      {:fail, reason} -> IO.puts(reason)
+    end
     {:noreply, socket}
   end
-  def handle_in("stations", %{"checksum" => checksum}, socket) do
-    # verify checksum
-    handle_in("stations", %{"checksum" => nil}, socket)
-  end
 
 
-  def handle_out("stations", payload, socket) do
-    push(socket, "stations", payload)
+
+  def handle_out("list_stations", payload, socket) do
+    push(socket, "list_stations", payload)
     {:noreply, socket}
   end
 end

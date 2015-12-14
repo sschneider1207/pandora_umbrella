@@ -9,11 +9,9 @@ defmodule PandoraPhoenix.HomeController do
     end
   end
 
-  def login(conn, %{"login" => user} = _params) do
-    conn
-    |> partner_login
-    |> try_login(user)
-    |> login_reply
+  def login(conn, %{"login" => %{"username" => username, "password" => password}} = _params) do
+    PandoraPlayer.login(username, password)
+    |> login_reply(conn)
   end
 
   def delete(conn, _params) do
@@ -22,36 +20,15 @@ defmodule PandoraPhoenix.HomeController do
     |> send_resp(204, "")
   end
 
-  defp partner_login(conn) do
-    {partner_auth_token, partner_id, sync_time, time_synced} = PandoraApiClient.partner_login
-    conn
-    |> put_session(:partner_auth_token, partner_auth_token)
-    |> put_session(:partner_id, partner_id)
-    |> put_session(:sync_time, sync_time)
-    |> put_session(:time_synced, time_synced)
-  end
-
-  defp try_login(conn, %{"username" => username, "password" => password}) do
-    partner_auth_token = get_session(conn, :partner_auth_token)
-    partner_id = get_session(conn, :partner_id)
-    sync_time = get_session(conn, :sync_time)
-    result = PandoraApiClient.user_login(username, password, partner_auth_token, partner_id, sync_time)
-    {conn, result}
-  end
-
-  defp login_reply({conn, {:ok, {user_auth_token, user_id, false}}}), do: login_reply({conn, {:fail, "User isn't authorized to listen."}})
-  defp login_reply({%{body_params: %{"login" => %{"username" => username, "password" => password}}} = conn, {:ok, {user_auth_token, user_id, true}}}) do
+  defp login_reply(:ok, %{body_params: %{"login" => %{"username" => username, "password" => password}}} = conn) do
     conn
     |> put_session(:username, username)
     |> put_session(:password, password)
-    |> put_session(:user_auth_token, user_auth_token)
-    |> put_session(:user_id, user_auth_token)
     |> redirect(to: player_path(PandoraPhoenix.Endpoint, :index))
   end
-  defp login_reply({conn, {:fail, {_error, _code}}}), do: login_reply({conn, {:fail, "Invalid username or password."}})
-  defp login_reply({conn, {:fail, error}}) do
+  defp login_reply({:fail, reason}, conn) do
     conn
-    |> put_flash(:error, error)
+    |> put_flash(:error, reason)
     |> redirect(to: home_path(PandoraPhoenix.Endpoint, :prompt_login))
   end
 

@@ -30,15 +30,13 @@ class App {
 
     stations.on("change", App.set_station)
 
-    channel.on("stations", App.list_stations)
+    channel.on("list_stations", App.list_stations)
     channel.on("now_playing", App.now_playing)
 
     // join channel
     channel.join()
       .receive("ok", resp => {
-        channel.push("stations", {
-          checksum: null
-        })
+        channel.push("list_stations")
       })
       .receive("error", resp => { console.log("Unable to join", resp) })
   }
@@ -53,7 +51,7 @@ class App {
     console.log("Stations", payload)
     stations.data('checksum', payload.checksum)
     payload.stations.forEach(entry => {
-      stations.append($("<option>", {value: "station-value"}).text(entry))
+      stations.append($("<option>", {value: entry.index}).text(entry.name))
     })
   }
 

@@ -133,7 +133,7 @@ defmodule PandoraPlayer do
    Enum.map(stations, &Map.fetch!(&1, "stationName")) |> Enum.with_index
   end
 
-  defp get_stations_reply(stations, state), do: {:reply, {:ok, stations, %{state | stations: stations}}}
+  defp get_stations_reply(stations, state), do: {:reply, {:ok, stations}, %{state | stations: stations}}
 
   defp set_station_reply(:error, state), do: {:reply, {:fail, "Station index out of range."}, state}
   defp set_station_reply({:ok, %{"stationToken" => station_token}}, state), do: {:reply, :ok, next_song(%{state | current_station: station_token, now_playing: nil, playlist: []})}
