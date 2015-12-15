@@ -22,41 +22,53 @@ import {Socket} from "deps/phoenix/web/static/js/phoenix"
 
 class App {
   static init() {
-    let socket = new Socket("/socket")
-    socket.connect()
-
-    let channel = socket.channel("player", {})
-    let stations = $("#stations-select")
-
-    stations.on("change", App.set_station)
-
-    channel.on("list_stations", App.list_stations)
-    channel.on("now_playing", App.now_playing)
-
-    // join channel
-    channel.join()
-      .receive("ok", resp => {
-        channel.push("list_stations")
-      })
-      .receive("error", resp => { console.log("Unable to join", resp) })
-  }
-
-  static set_station() {
-    let optionSelected = $("option:selected", this);
-    console.log(optionSelected.val())
-  }
-
-  static list_stations(payload) {
-    let stations = $("#stations-select")
-    console.log("Stations", payload)
-    stations.data('checksum', payload.checksum)
-    payload.stations.forEach(entry => {
-      stations.append($("<option>", {value: entry.index}).text(entry.name))
+    let socket = new Socket("/socket", {
+      logger: ((kind, msg, data) => {console.log(`${kind}: ${msg}`, data) })
     })
-  }
 
-  static now_playing(payload) {
-    console.log("Now playing", payload)
+    socket.connect()
+    var $stations = $("#stations-select")
+    var $player = $("#player")
+    var $audioHigh = $("#audio-high")
+    var $audioMed = $("#audio-med")
+    var $audioLow = $("#audio-low")
+
+    socket.onOpen( ev => console.log("OPEN", ev) )
+    socket.onError( ev => console.log("ERROR", ev) )
+    socket.onClose( e => console.log("CLOSE", e))
+
+    var chan = socket.channel("player", {})
+    chan.join().receive("ok", () => { console.log("join ok"); chan.push("list_stations"); })
+               .after(10000, () => console.log("Connection interruption"))
+    chan.onError(e => console.log("something went wrong", e))
+    chan.onClose(e => console.log("channel closed", e))
+
+    // update station list and checksum
+    chan.on("list_stations", msg => {
+      $stations.data('checksum', msg.checksum)
+      msg.stations.forEach(entry => {
+        $stations.append($("<option>", {value: entry.index}).text(entry.name))
+      })
+    })
+
+    // set current playing song audio urls
+    chan.on("now_playing", msg => {
+      var nowPlaying = msg.now_playing
+      $audioHigh.attr("src", nowPlaying.urls.highQuality.audioUrl)
+      $audioMed.attr("src", nowPlaying.urls.mediumQuality.audioUrl)
+      $audioLow.attr("src", nowPlaying.urls.lowQuality.audioUrl)
+
+      $player[0].pause()
+      $player[0].load()
+      $player[0].oncanplaythrough = $player[0].play()
+    })
+    
+    // set station on select change
+    $stations.on("change", event => {
+      var $optionSelected = $(event.currentTarget).find("option:selected");
+      console.log("option selected", $optionSelected)
+      chan.push("set_station", {index: $optionSelected.val()})
+    })
   }
 }
 

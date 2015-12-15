@@ -109,7 +109,7 @@ defmodule PandoraPlayer do
   """
   def handle_call(:now_playing, _from, %{user_auth_token: nil} = state), do: {:reply, {:fail, "Not logged in."}, state}
   def handle_call(:now_playing, _from, %{current_station: nil} = state), do: {:reply, {:fail, "No station currently selected."}, state}
-  def handle_call(:now_playing, _from, %{now_playing: %{"songName" => song, "artistName" => artist, "albumName" => album}} = state), do: {:reply, {:ok, %{song: song, artist: artist, album: album}}, state}
+  def handle_call(:now_playing, _from, %{now_playing: %{"songName" => song, "artistName" => artist, "albumName" => album, "audioUrlMap" => audio_url_map}} = state), do: {:reply, {:ok, %{song: song, artist: artist, album: album, urls: audio_url_map}}, state}
 
   @doc """
   Callback for current song ending.
@@ -139,12 +139,12 @@ defmodule PandoraPlayer do
 
   defp station_token_match?(station, station_token), do: station["stationToken"] === station_token
 
-  defp next_song(%{partner_id: partner_id, user_auth_token: user_auth_token, user_id: user_id, sync_time: sync_time, time_synced: time_synced, current_station: current_station, playlist: [], audio_streamer: audio_streamer, audio_streamer_monitor: audio_streamer_monitor} = state) do
+  defp next_song(%{partner_id: partner_id, user_auth_token: user_auth_token, user_id: user_id, sync_time: sync_time, time_synced: time_synced, current_station: current_station, playlist: []} = state) do
     [new_song | playlist] = PandoraApiClient.get_playlist(current_station, partner_id, user_auth_token, user_id, sync_time, time_synced)
     notify_new_song(new_song)
     %{state | now_playing: new_song, playlist: playlist}
   end
-  defp next_song(%{playlist: [new_song | playlist], audio_streamer: audio_streamer, audio_streamer_monitor: audio_streamer_monitor} = state) do
+  defp next_song(%{playlist: [new_song | playlist]} = state) do
     notify_new_song(new_song)
     %{state | now_playing: new_song, playlist: playlist}
   end

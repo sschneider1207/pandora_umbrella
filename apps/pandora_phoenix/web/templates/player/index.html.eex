@@ -12,22 +12,15 @@
       <h4> Album: <%= album_name(@now_playing) %></h4>
     </div>
 
-    <%= if @now_playing != nil do %>
-      <div id="player">
-        <audio preload="auto" autoplay controls onended="next_song()">
-          <source src="<%= song_url_high(@now_playing) %>" type="audio/mpeg">
-          <source src="<%= song_url_med(@now_playing) %>" type="audio/mpeg">
-          <source src="<%= song_url_low(@now_playing) %>" type="audio/mpeg">
-        </audio>
-      </div>
-    <% end %>
+    <audio id="player" preload="auto" controls>
+      <source id="audio-high" src="" type="audio/mpeg">
+      <source id="audio-med" src="" type="audio/mpeg">
+      <source id="audio-low" src="" type="audio/mpeg">
+    </audio>
 
     <%= raw(song_lyrics(@now_playing)) %>
 
 </div>
 
-<script>
-  function next_song() {
-    window.location = "<%= player_path(@conn, :index) %>"
-  }
-</script>
+<script src="https://ajax.googleapis.com/ajax/libs/jquery/1.11.3/jquery.min.js"></script>
+<script src="<%= static_path(@conn, "/js/app.js") %>"></script>
